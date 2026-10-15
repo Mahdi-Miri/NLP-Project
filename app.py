@@ -179,23 +179,25 @@ with tab1:
         if results:
             st.markdown("#### Matched Citations")
             for item in results:
+                categories_text = ", ".join(item.get("categories", [])) if item.get("categories") else "General"
                 st.markdown(f"""
                 <div class="quote-result">
                     <div class="quote-body">"{item['full_quote']}"</div>
-                    <div>
+                    <div style="margin-top: 0.5rem; line-height: 1.8;">
                         <span class="badge badge-author">Author: {item['author']}</span>
-                        <span class="badge badge-source">Source: {item['source']}</span>
+                        <span class="badge badge-source">Work: {item['work']}</span>
+                        <span class="badge" style="background:#F1F5F9; color:#334155;">Source: {item['source']}</span>
+                        <span class="badge" style="background:#F8FAFC; color:#64748B;">Categories: {categories_text}</span>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
 
-            # Clean Graph Structure Display
-            if trace.get("dot_graph"):
-                st.markdown("#### Graph Connection Structure")
-                st.graphviz_chart(trace["dot_graph"])
-
-            # Underlying Query Expander
-            with st.expander("Show Graph Cypher Query"):
+            # Optional Technical Inspection for Graph Traversal & Cypher Query
+            with st.expander("Technical Details: Graph Relationships & Cypher Query"):
+                if trace.get("dot_graph"):
+                    st.caption("Graph Schema Visualization:")
+                    st.graphviz_chart(trace["dot_graph"])
+                st.caption("Neo4j Cypher Query:")
                 st.code(trace.get("cypher_code", ""), language="cypher")
         else:
             st.info("No matching citation found in the graph database. Try another phrase.")

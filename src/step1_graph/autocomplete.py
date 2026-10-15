@@ -108,30 +108,33 @@ class QuoteAutocompleter:
             f"ORDER BY q.char_length ASC LIMIT {top_k};"
         )
 
-        # Generate Graphviz DOT graph representation
+        # Generate clean academic property graph representation (zero emojis, standard Neo4j style)
         dot_lines = [
             'digraph QuoteGraph {',
             '  rankdir=LR;',
             '  bgcolor="transparent";',
-            '  node [fontname="Helvetica", fontsize=11, style="filled"];',
-            '  edge [fontname="Helvetica", fontsize=9, color="#64748B", arrowsize=0.8];'
+            '  node [fontname="Helvetica", fontsize=10, style="filled,rounded", shape=rect, penwidth=1.2];',
+            '  edge [fontname="Helvetica", fontsize=9, color="#64748B", arrowsize=0.7, penwidth=1.1];'
         ]
 
         seen_nodes = set()
         for idx, r in enumerate(enriched_results, 1):
             q_id = f"q_{r['id']}"
-            q_label = (r['full_quote'][:45] + "...") if len(r['full_quote']) > 45 else r['full_quote']
-            q_label = q_label.replace('"', '\\"')
+            q_text_clean = r['full_quote'].replace('"', '\\"')
+            if len(q_text_clean) > 50:
+                q_label = f"Quote\\n\\\"{q_text_clean[:47]}...\\\""
+            else:
+                q_label = f"Quote\\n\\\"{q_text_clean}\\\""
 
             if q_id not in seen_nodes:
-                dot_lines.append(f'  {q_id} [label="{q_label}", shape=box, fillcolor="#DBEAFE", color="#3B82F6", fontcolor="#1E3A8A"];')
+                dot_lines.append(f'  {q_id} [label="{q_label}", fillcolor="#EFF6FF", color="#3B82F6", fontcolor="#1E3A8A"];')
                 seen_nodes.add(q_id)
 
             # Author Node
             a_id = f"a_{abs(hash(r['author'])) % 100000}"
             a_label = r['author'].replace('"', '\\"')
             if a_id not in seen_nodes:
-                dot_lines.append(f'  {a_id} [label="👤 {a_label}", shape=ellipse, fillcolor="#DCFCE7", color="#16A34A", fontcolor="#14532D"];')
+                dot_lines.append(f'  {a_id} [label="Author\\n{a_label}", fillcolor="#F0FDF4", color="#16A34A", fontcolor="#14532D"];')
                 seen_nodes.add(a_id)
             dot_lines.append(f'  {q_id} -> {a_id} [label="SAID_BY", color="#16A34A"];')
 
@@ -140,7 +143,7 @@ class QuoteAutocompleter:
                 w_id = f"w_{abs(hash(r['work'])) % 100000}"
                 w_label = r['work'].replace('"', '\\"')
                 if w_id not in seen_nodes:
-                    dot_lines.append(f'  {w_id} [label="📖 {w_label}", shape=box, fillcolor="#FFEDD5", color="#EA580C", fontcolor="#7C2D12"];')
+                    dot_lines.append(f'  {w_id} [label="Work\\n{w_label}", fillcolor="#FFF7ED", color="#EA580C", fontcolor="#7C2D12"];')
                     seen_nodes.add(w_id)
                 dot_lines.append(f'  {q_id} -> {w_id} [label="FROM_WORK", color="#EA580C"];')
 
@@ -149,9 +152,9 @@ class QuoteAutocompleter:
                 c_id = f"c_{abs(hash(cat)) % 100000}"
                 c_label = cat.replace('"', '\\"')
                 if c_id not in seen_nodes:
-                    dot_lines.append(f'  {c_id} [label="🏷️ {c_label}", shape=oval, fillcolor="#F3E8FF", color="#9333EA", fontcolor="#581C87"];')
+                    dot_lines.append(f'  {c_id} [label="Category\\n{c_label}", fillcolor="#F8FAFC", color="#64748B", fontcolor="#334155"];')
                     seen_nodes.add(c_id)
-                dot_lines.append(f'  {q_id} -> {c_id} [label="HAS_CATEGORY", color="#9333EA", style=dashed];')
+                dot_lines.append(f'  {q_id} -> {c_id} [label="HAS_CATEGORY", color="#64748B", style=dashed];')
 
         dot_lines.append('}')
         dot_graph = "\n".join(dot_lines)
