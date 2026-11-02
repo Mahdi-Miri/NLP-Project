@@ -1,329 +1,558 @@
+"""
+Neapolitan Artistic Heritage Speech Dialogue System.
+Web Application for Natural Language Processing.
+Focus: Works by Caravaggio and Battistello Caracciolo visitable in Naples.
+Foundational Knowledge: DBpedia SPARQL queries loaded into Graph Database.
+"""
+
 import os
 import sys
 import tempfile
-import streamlit as st
 from pathlib import Path
+import streamlit as st
 
-# Ensure project root is in sys.path
-PROJECT_ROOT = Path(__file__).resolve().parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# Ensure project root is in path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from config.settings import config
-from src.step1_graph.autocomplete import QuoteAutocompleter
-from src.step1_graph.graph_db import get_quote_graph
-from src.step2_voice.chatbot import WhichQuoteChatbot
+from src.data_pipeline.sparql_client import DBpediaSPARQLClient
+from src.data_pipeline.graph_db import NeapolitanArtGraph
+from src.dialogue.chatbot import NeapolitanArtChatbot
+from src.dialogue.inconsistency import InconsistencyDetector, InconsistencyType
+from src.speech.speech_chatbot import NeapolitanSpeechChatbot
+from src.speech.asr import SpeechRecognizer
+from src.speech.tts import TextToSpeechSynthesizer
 
-# Page configuration
+# Streamlit Page Setup
 st.set_page_config(
-    page_title="NLP Project - Citation Search and Speech Interface",
+    page_title="Neapolitan Art Dialogue System | Caravaggio & Caracciolo",
+    page_icon=None,
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# Custom Clean Light Styling (No Emojis, Authentic Academic Engineering Interface)
-st.markdown("""
-<style>
-    /* Force Light Theme */
-    [data-testid="stAppViewContainer"] {
-        background-color: #FFFFFF !important;
-        color: #0F172A !important;
-    }
-    [data-testid="stSidebar"] {
-        background-color: #F8FAFC !important;
-        border-right: 1px solid #E2E8F0;
+# Custom Light-Theme CSS (Strict Light Mode, OS Dark Mode override, no emojis, clean academic styling)
+st.markdown(
+    """
+    <style>
+    /* 1. Global Strict Light Mode Enforcer */
+    :root {
+        color-scheme: light !important;
     }
     
-    /* Typography */
-    .app-title {
-        font-size: 1.85rem;
+    html, body, .stApp, [data-testid="stAppViewContainer"], .main {
+        background-color: #fcfcfd !important;
+        color: #0f172a !important;
+        color-scheme: light !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    /* 2. OS Dark Mode Override - Never allow dark backgrounds */
+    @media (prefers-color-scheme: dark) {
+        :root, html, body, .stApp, [data-testid="stAppViewContainer"], .main {
+            background-color: #fcfcfd !important;
+            color: #0f172a !important;
+            color-scheme: light !important;
+        }
+        section[data-testid="stSidebar"], section[data-testid="stSidebar"] > div {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+        }
+        .stMarkdown, p, span, label, h1, h2, h3, h4, h5, h6 {
+            color: #0f172a !important;
+        }
+        input, textarea, select, [data-baseweb="input"], [data-baseweb="base-input"] {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+        }
+    }
+    
+    /* 3. Header & Sidebar Light Styling */
+    header[data-testid="stHeader"] {
+        background-color: #fcfcfd !important;
+    }
+    section[data-testid="stSidebar"] {
+        background-color: #f8fafc !important;
+        border-right: 1px solid #e2e8f0 !important;
+    }
+    
+    /* Academic Header */
+    .academic-header {
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 14px;
+        margin-bottom: 24px;
+    }
+    .academic-title {
+        font-size: 24px;
         font-weight: 700;
-        color: #0F172A;
-        letter-spacing: -0.02em;
-        margin-bottom: 0.15rem;
+        color: #0f172a;
+        margin: 0;
+        letter-spacing: -0.01em;
     }
-    .app-subtitle {
-        color: #64748B;
-        font-size: 0.95rem;
-        margin-bottom: 1.5rem;
+    .academic-subtitle {
+        font-size: 14px;
+        color: #64748b;
+        margin-top: 4px;
     }
     
-    /* Cards and Containers */
-    .card-container {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 8px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    }
-    .quote-result {
-        background-color: #F8FAFC;
-        border-left: 4px solid #2563EB;
+    /* Inconsistency Alert Box */
+    .inconsistency-box {
+        background-color: #fef2f2;
+        border-left: 4px solid #ef4444;
+        padding: 14px 18px;
         border-radius: 4px;
-        padding: 1rem 1.25rem;
-        margin-bottom: 0.75rem;
+        margin-bottom: 16px;
     }
-    .quote-body {
-        font-size: 1.1rem;
-        color: #0F172A;
+    .inconsistency-title {
+        font-weight: 700;
+        color: #991b1b;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 6px;
+    }
+    .inconsistency-body {
+        font-size: 14px;
+        color: #7f1d1d;
         line-height: 1.5;
-        margin-bottom: 0.5rem;
     }
-    .badge {
-        display: inline-block;
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-size: 0.8rem;
+    
+    /* Dialogue State Card */
+    .state-card {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 14px 18px;
+        margin-bottom: 16px;
+    }
+    .state-title {
+        font-size: 13px;
         font-weight: 600;
-        margin-right: 6px;
-    }
-    .badge-author {
-        background-color: #EFF6FF;
-        color: #1D4ED8;
-    }
-    .badge-source {
-        background-color: #F1F5F9;
         color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 8px;
     }
-    .section-header {
-        font-size: 1.15rem;
+    .state-item {
+        font-size: 14px;
+        color: #1e293b;
+        margin-bottom: 4px;
+    }
+    
+    /* Conversation Bubbles */
+    .chat-bubble-user {
+        background-color: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        color: #0f172a;
+    }
+    .chat-bubble-system {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-left: 4px solid #2563eb;
+        border-radius: 6px;
+        padding: 14px 18px;
+        margin-bottom: 16px;
+        color: #1e293b;
+        line-height: 1.6;
+    }
+    
+    /* Catalog Artwork Cards */
+    .art-card {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 18px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .art-title {
+        font-size: 16px;
         font-weight: 600;
-        color: #1E293B;
-        margin-bottom: 0.4rem;
+        color: #0f172a;
     }
-    .hint-text {
-        color: #64748B;
-        font-size: 0.85rem;
-        margin-top: -0.3rem;
-        margin-bottom: 0.75rem;
+    .art-meta {
+        font-size: 13px;
+        color: #64748b;
+        margin-top: 4px;
+        margin-bottom: 8px;
     }
-</style>
-""", unsafe_allow_html=True)
+    .art-desc {
+        font-size: 14px;
+        color: #334155;
+        line-height: 1.5;
+        margin-bottom: 12px;
+    }
+    
+    /* Verified Resource Links */
+    .art-links-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+        padding-top: 10px;
+        border-top: 1px solid #f1f5f9;
+    }
+    .art-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 12px;
+        border-radius: 5px;
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: none !important;
+        background-color: #eff6ff;
+        color: #1d4ed8 !important;
+        border: 1px solid #bfdbfe;
+        transition: all 0.15s ease-in-out;
+    }
+    .art-link:hover {
+        background-color: #2563eb;
+        color: #ffffff !important;
+        border-color: #2563eb;
+    }
+    .art-link-secondary {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 12px;
+        border-radius: 5px;
+        font-size: 12px;
+        font-weight: 500;
+        text-decoration: none !important;
+        background-color: #f8fafc;
+        color: #475569 !important;
+        border: 1px solid #e2e8f0;
+        transition: all 0.15s ease-in-out;
+    }
+    .art-link-secondary:hover {
+        background-color: #0f172a;
+        color: #ffffff !important;
+        border-color: #0f172a;
+    }
+    
+    /* Card Accordion Details */
+    details.art-details {
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid #f1f5f9;
+    }
+    details.art-details summary {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        user-select: none;
+        outline: none;
+        transition: color 0.15s ease;
+    }
+    details.art-details summary:hover {
+        color: #2563eb;
+    }
+    details.art-details[open] summary {
+        color: #2563eb;
+        margin-bottom: 8px;
+    }
+    
+    /* Venue Card */
+    .venue-card {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 14px;
+        height: 100%;
+    }
+    .venue-name {
+        font-weight: 600;
+        font-size: 14px;
+        color: #0f172a;
+        margin-bottom: 4px;
+    }
+    .venue-meta {
+        font-size: 12px;
+        color: #64748b;
+        margin-bottom: 8px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 @st.cache_resource
-def load_system():
-    graph = get_quote_graph()
-    ac = QuoteAutocompleter(graph)
-    bot = WhichQuoteChatbot(autocompleter=ac)
-    return graph, ac, bot
+def load_system_pipeline():
+    """Load knowledge graph and initialize conversational pipeline."""
+    client = DBpediaSPARQLClient()
+    corpus = client.fetch_neapolitan_corpus(force_refresh=False)
+    graph = NeapolitanArtGraph()
+    graph.populate(corpus)
+    chatbot = NeapolitanArtChatbot(graph=graph)
+    asr = SpeechRecognizer()
+    tts = TextToSpeechSynthesizer()
+    pipeline = NeapolitanSpeechChatbot(chatbot=chatbot, asr=asr, tts=tts)
+    return client, graph, pipeline
 
 
-graph, autocompleter, chatbot = load_system()
+# Initialize session state for multi-turn history
+if "dialogue_history" not in st.session_state:
+    st.session_state.dialogue_history = []
+if "latest_audio_path" not in st.session_state:
+    st.session_state.latest_audio_path = None
+if "latest_inconsistency" not in st.session_state:
+    st.session_state.latest_inconsistency = None
 
-# Sidebar: System Information & Database Counts
+client, graph, pipeline = load_system_pipeline()
+
+# Academic Header
+st.markdown(
+    """
+    <div class="academic-header">
+        <div class="academic-title">Neapolitan Artistic Heritage Speech Dialogue System</div>
+        <div class="academic-subtitle">
+            Natural Language Processing | University of Naples Federico II<br>
+            Works by Caravaggio and Battistello Caracciolo visitable in the urban area of Naples
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Sidebar: System Status & Controls
 with st.sidebar:
-    st.markdown("### Database Statistics")
-    stats = graph.get_stats()
-    st.write(f"Indexed Quotes: **{stats.get('quotes', 0)}**")
-    st.write(f"Indexed Authors: **{stats.get('authors', 0)}**")
-    st.write(f"Indexed Works: **{stats.get('works', 0)}**")
+    st.subheader("System Architecture")
+    st.markdown(f"**Knowledge Graph Backend:** `{graph.active_backend.upper()}`")
+    st.markdown(f"**SPARQL Endpoint:** `https://dbpedia.org/sparql`")
+    st.markdown(f"**ASR Model:** `OpenAI Whisper ({config.speech.asr_model_name})`")
+    st.markdown(f"**TTS Synthesizer:** `{config.speech.tts_engine.upper()} ({config.speech.tts_voice})`")
 
     st.markdown("---")
-    st.markdown("### Enrolled Speakers")
-    users = chatbot.speaker_system.list_users()
-    if users:
-        for u in users:
-            st.markdown(f"- **{u}**")
-    else:
-        st.write("No speakers registered yet.")
+    st.subheader("Dialogue Controls")
+    if st.button("Reset Dialogue Memory", use_container_width=True):
+        pipeline.reset()
+        st.session_state.dialogue_history = []
+        st.session_state.latest_audio_path = None
+        st.session_state.latest_inconsistency = None
+        st.session_state.last_processed_audio_bytes = None
+        st.success("Dialogue context and entity memory cleared.")
+
+    if st.button("Re-sync DBpedia SPARQL", use_container_width=True):
+        with st.spinner("Fetching latest RDF triples from DBpedia..."):
+            fresh_corpus = client.fetch_neapolitan_corpus(force_refresh=True)
+            graph.populate(fresh_corpus)
+            st.success("Graph re-synchronized with DBpedia.")
 
     st.markdown("---")
-    st.caption("Corso di Natural Language Processing")
+    st.subheader("Catalog Statistics")
+    all_artworks = graph.get_all_artworks()
+    venues = graph.get_all_locations()
+    artists = graph.get_all_artists()
+    st.markdown(f"- Total Artworks in Naples: **{len(all_artworks)}**")
+    st.markdown(f"- Cultural Venues: **{len(venues)}**")
+    st.markdown(f"- Target Artists: **Caravaggio, Battistello Caracciolo**")
 
-# Main Header - Humanized Academic Presentation
-st.markdown('<div class="app-title">Natural Language Processing - University Project</div>', unsafe_allow_html=True)
-st.markdown('<div class="app-subtitle">Knowledge Graph Citation Search & Speech Recognition Interface</div>', unsafe_allow_html=True)
+# Main Layout: Single-Page Architecture
+col_chat, col_state = st.columns([7, 3])
 
-# Main Navigation Tabs (Clean and Direct)
-tab1, tab2, tab3 = st.tabs([
-    "1. Citation Search (Step 1)",
-    "2. Speech Query (Step 2)",
-    "3. Speaker Enrollment"
-])
+with col_state:
+    st.markdown("### Dialogue State Tracker")
+    curr_state = pipeline.chatbot.tracker.get_state()
+    active_artist = curr_state.active_artist or "None (unspecified)"
+    active_art = curr_state.active_artwork.get("title") if curr_state.active_artwork else "None (unspecified)"
+    active_loc = curr_state.active_location.get("name") if curr_state.active_location else "None (unspecified)"
 
+    st.markdown(
+        f"""
+        <div class="state-card">
+            <div class="state-title">Discourse Memory State</div>
+            <div class="state-item"><strong>Active Artist:</strong> {active_artist}</div>
+            <div class="state-item"><strong>Active Artwork:</strong> {active_art}</div>
+            <div class="state-item"><strong>Active Venue:</strong> {active_loc}</div>
+            <div class="state-item"><strong>City Focus:</strong> Naples</div>
+            <div class="state-item"><strong>Turn Counter:</strong> {curr_state.turn_counter}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-# ==========================================
-# TAB 1: STEP 1 CITATION SEARCH
-# ==========================================
-with tab1:
-    st.markdown('<div class="section-header">Step 1: Knowledge Graph Autocomplete & Retrieval</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint-text">Type a phrase to autocomplete citations from the graph database and inspect matching sources.</div>', unsafe_allow_html=True)
-
-    # Clean preset test buttons
-    st.write("Sample queries:")
-    col_b1, col_b2, col_b3, col_b4 = st.columns(4)
-    with col_b1:
-        if st.button("Stay hungry", use_container_width=True):
-            st.session_state["quote_input"] = "Stay hungry"
-    with col_b2:
-        if st.button("To be, or not", use_container_width=True):
-            st.session_state["quote_input"] = "To be, or not"
-    with col_b3:
-        if st.button("Imagination is", use_container_width=True):
-            st.session_state["quote_input"] = "Imagination is"
-    with col_b4:
-        if st.button("Darkness cannot", use_container_width=True):
-            st.session_state["quote_input"] = "Darkness cannot"
-
-    current_val = st.session_state.get("quote_input", "Stay hungry")
-    user_query = st.text_input("Search phrase:", value=current_val)
-
-    if user_query.strip():
-        trace = autocompleter.autocomplete_with_trace(user_query, top_k=3)
-        results = trace.get("results", [])
-
-        st.write(f"Search Latency: **{trace.get('execution_time_ms', 0)} ms** | Method: **{trace.get('strategy', 'N/A')}**")
-
-        if results:
-            st.markdown("#### Matched Citations")
-            for item in results:
-                categories_text = ", ".join(item.get("categories", [])) if item.get("categories") else "General"
-                st.markdown(f"""
-                <div class="quote-result">
-                    <div class="quote-body">"{item['full_quote']}"</div>
-                    <div style="margin-top: 0.5rem; line-height: 1.8;">
-                        <span class="badge badge-author">Author: {item['author']}</span>
-                        <span class="badge badge-source">Work: {item['work']}</span>
-                        <span class="badge" style="background:#F1F5F9; color:#334155;">Source: {item['source']}</span>
-                        <span class="badge" style="background:#F8FAFC; color:#64748B;">Categories: {categories_text}</span>
-                    </div>
+    if st.session_state.latest_inconsistency and st.session_state.latest_inconsistency.is_inconsistent:
+        inc = st.session_state.latest_inconsistency
+        st.markdown(
+            f"""
+            <div class="inconsistency-box">
+                <div class="inconsistency-title">Inconsistency Detected [{inc.inconsistency_type.value}]</div>
+                <div class="inconsistency-body">
+                    <strong>Explanation:</strong> {inc.explanation}<br>
+                    <strong>Correction:</strong> {inc.suggested_correction}
                 </div>
-                """, unsafe_allow_html=True)
-
-            # Optional Technical Inspection for Graph Traversal & Cypher Query
-            with st.expander("Technical Details: Graph Relationships & Cypher Query"):
-                if trace.get("dot_graph"):
-                    st.caption("Graph Schema Visualization:")
-                    st.graphviz_chart(trace["dot_graph"])
-                st.caption("Neo4j Cypher Query:")
-                st.code(trace.get("cypher_code", ""), language="cypher")
-        else:
-            st.info("No matching citation found in the graph database. Try another phrase.")
-
-
-# ==========================================
-# TAB 2: STEP 2 SPEECH QUERY
-# ==========================================
-with tab2:
-    st.markdown('<div class="section-header">Step 2: Speech Recognition & Speaker Verification</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint-text">Submit an audio query through the microphone or an audio file. The system identifies the speaker, transcribes speech, and plays a synthesized response.</div>', unsafe_allow_html=True)
-
-    input_method = st.radio("Input Method:", ["Microphone Input", "Upload Audio File"], horizontal=True)
-
-    voice_bytes = None
-    if input_method == "Microphone Input":
-        mic_recording = st.audio_input("Record Voice:")
-        if mic_recording is not None:
-            voice_bytes = mic_recording.read()
-    else:
-        file_upload = st.file_uploader("Upload Audio File (WAV, MP3):", type=["wav", "mp3", "m4a", "ogg"])
-        if file_upload is not None:
-            voice_bytes = file_upload.read()
-
-    if voice_bytes is not None:
-        if st.button("Run Speech Query", type="primary"):
-            with st.spinner("Processing speech recognition and database retrieval..."):
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_audio:
-                    tmp_audio.write(voice_bytes)
-                    tmp_path = tmp_audio.name
-
-                try:
-                    result = chatbot.process_voice_turn(tmp_path)
-
-                    st.markdown("---")
-                    st.markdown("#### Query Results")
-
-                    # Speaker identification status
-                    speaker = result.get("speaker", "Guest")
-                    conf = result.get("confidence", 0.0)
-                    threshold = result.get("threshold", 0.50)
-                    closest = result.get("closest_match")
-                    closest_score = result.get("closest_score", 0.0)
-
-                    col_s1, col_s2 = st.columns(2)
-                    with col_s1:
-                        if speaker != "Guest":
-                            st.success(f"Speaker Identity: **{speaker}**")
-                            st.caption(f"Verification Score: {conf:.2f} (Threshold: {threshold:.2f})")
-                        else:
-                            all_users = chatbot.speaker_system.list_users()
-                            if not all_users:
-                                st.warning("Speaker Identity: **Guest** (No speaker profiles registered yet. You can enroll in tab 3).")
-                            elif closest:
-                                st.info(f"Speaker Identity: **Guest** (Closest enrolled speaker: '{closest}' with similarity {closest_score:.2f}, below threshold {threshold:.2f}).")
-                            else:
-                                st.info(f"Speaker Identity: **Guest** (Score: {conf:.2f} < Threshold: {threshold:.2f}).")
-
-                    with col_s2:
-                        st.write(f"Synthesizer Voice Profile: **{result.get('voice_used', 'Default')}**")
-
-                    # Speech transcription
-                    transcribed = result.get("transcription", "")
-                    if transcribed:
-                        st.markdown(f"**Speech Transcription:** \"{transcribed}\"")
-                    else:
-                        st.warning("No speech detected. Please speak closer to the microphone.")
-
-                    # Response
-                    st.markdown(f"**Response:** {result.get('response', '')}")
-
-                    # Audio playback
-                    audio_out_path = result.get("audio_response_path")
-                    if audio_out_path and os.path.exists(audio_out_path):
-                        st.markdown("#### Spoken Audio Output")
-                        st.audio(audio_out_path, format="audio/mp3")
-
-                finally:
-                    if os.path.exists(tmp_path):
-                        os.unlink(tmp_path)
-
-
-# ==========================================
-# TAB 3: SPEAKER ENROLLMENT
-# ==========================================
-with tab3:
-    st.markdown('<div class="section-header">Step 3: Speaker Enrollment</div>', unsafe_allow_html=True)
-    st.markdown('<div class="hint-text">Register a speaker voice profile. The system computes a speaker acoustic embedding for voice verification.</div>', unsafe_allow_html=True)
-
-    col_reg1, col_reg2 = st.columns(2)
-    with col_reg1:
-        reg_name = st.text_input("Speaker Name:", placeholder="e.g. Mahdi")
-    with col_reg2:
-        voice_choice = st.selectbox(
-            "Output Voice Profile:",
-            [
-                ("en-US-GuyNeural", "Standard English - Speaker 1 (Male)"),
-                ("en-US-JennyNeural", "Standard English - Speaker 2 (Female)"),
-                ("en-GB-RyanNeural", "British English - Speaker 3 (Male)"),
-                ("en-GB-SoniaNeural", "British English - Speaker 4 (Female)"),
-                ("en-AU-WilliamNeural", "Australian English - Speaker 5 (Male)")
-            ],
-            format_func=lambda x: f"{x[1]}"
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    st.write("Record an audio sample of your voice (say: 'My name is [Name]'):")
-    enroll_recording = st.audio_input("Record Speaker Voice Sample:")
+with col_chat:
+    st.markdown("### Spoken Voice & Text Inquiry")
 
-    if st.button("Register Speaker", type="primary"):
-        if not reg_name.strip():
-            st.error("Please enter a name.")
-        elif enroll_recording is None:
-            st.error("Please record an audio sample first.")
-        else:
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_enroll:
-                tmp_enroll.write(enroll_recording.read())
-                tmp_enroll_path = tmp_enroll.name
+    # Voice recording via microphone
+    mic_audio = st.audio_input("Record voice question via microphone:")
 
-            try:
-                chatbot.speaker_system.register_user(
-                    reg_name.strip(),
-                    tmp_enroll_path,
-                    voice_preference={"voice": voice_choice[0], "rate": "+0%", "pitch": "+0Hz"}
+    # Text input
+    user_text = st.text_input(
+        "Or type your question directly:",
+        placeholder="e.g. Can I visit The Seven Works of Mercy at Capodimonte?",
+        key="user_text_input",
+    )
+
+    submit_text = st.button("Submit Question", type="primary")
+
+    # Process voice recording when freshly captured
+    if mic_audio is not None:
+        audio_bytes = mic_audio.read()
+        if audio_bytes and audio_bytes != st.session_state.get("last_processed_audio_bytes"):
+            st.session_state["last_processed_audio_bytes"] = audio_bytes
+            with st.spinner("Transcribing speech with Whisper ASR and querying knowledge graph..."):
+                turn_res = pipeline.process_voice_turn(audio_bytes)
+                st.session_state.latest_audio_path = turn_res.response_audio_path
+                st.session_state.latest_inconsistency = turn_res.inconsistency_report
+                st.session_state.dialogue_history.append(
+                    {
+                        "user": turn_res.user_utterance,
+                        "system": turn_res.system_response,
+                        "audio_path": turn_res.response_audio_path,
+                        "inconsistency": turn_res.inconsistency_report,
+                    }
                 )
-                st.success(f"Speaker '{reg_name.strip()}' registered successfully.")
                 st.rerun()
-            finally:
-                if os.path.exists(tmp_enroll_path):
-                    os.unlink(tmp_enroll_path)
+
+    # Process text query on submission
+    if submit_text and user_text.strip():
+        with st.spinner("Querying knowledge graph and synthesizing spoken response..."):
+            turn_res = pipeline.process_text_turn(user_text.strip())
+            st.session_state.latest_audio_path = turn_res.response_audio_path
+            st.session_state.latest_inconsistency = turn_res.inconsistency_report
+            st.session_state.dialogue_history.append(
+                {
+                    "user": turn_res.user_utterance,
+                    "system": turn_res.system_response,
+                    "audio_path": turn_res.response_audio_path,
+                    "inconsistency": turn_res.inconsistency_report,
+                }
+            )
+            st.rerun()
+
+    # Latest Response Display & Spoken Audio Playback
+    if st.session_state.dialogue_history:
+        latest = st.session_state.dialogue_history[-1]
+        st.markdown(f"<div class='chat-bubble-user'><strong>Your Inquiry:</strong> {latest['user']}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='chat-bubble-system'><strong>System Response:</strong><br>{latest['system']}</div>", unsafe_allow_html=True)
+
+        if st.session_state.latest_audio_path and os.path.exists(st.session_state.latest_audio_path):
+            st.markdown("#### Spoken Audio Playback (TTS)")
+            st.audio(st.session_state.latest_audio_path, format="audio/mp3")
+
+# ==============================================================================
+# EXPANDABLE KNOWLEDGE GRAPH & DBPEDIA CATALOG
+# ==============================================================================
+st.markdown("---")
+with st.expander("Cultural Heritage Knowledge Graph & DBpedia Ground Truth Catalog", expanded=False):
+    st.markdown("### Cultural Heritage Knowledge Catalog (Naples, Italy)")
+    st.markdown(
+        "Ground truth acquired via SPARQL queries to DBpedia and modeled in the Knowledge Graph."
+    )
+
+    cat_col1, cat_col2 = st.columns([1, 1])
+
+    with cat_col1:
+        st.markdown("#### Caravaggio in Naples")
+        caravaggio_works = graph.get_artworks_by_artist("Caravaggio")
+        for art in caravaggio_works:
+            source_link = art.get('source_url', '')
+            dbpedia_link = art.get('dbpedia_page', '')
+            st.markdown(
+                f"""
+                <div class="art-card">
+                    <div class="art-title">{art['title']} ({art.get('year', '')})</div>
+                    <div class="art-meta"><strong>Location:</strong> {art['location']} | {art.get('dimensions', '')}</div>
+                    <div class="art-desc">{art.get('description', '')}</div>
+                    <details class="art-details">
+                        <summary>Provenance & External References</summary>
+                        <div class="art-links-container" style="border-top: none; padding-top: 4px; margin-top: 4px;">
+                            <a href="{source_link}" target="_blank" rel="noopener noreferrer" class="art-link">Wikipedia Article</a>
+                            <a href="{dbpedia_link}" target="_blank" rel="noopener noreferrer" class="art-link-secondary">DBpedia Resource</a>
+                        </div>
+                    </details>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    with cat_col2:
+        st.markdown("#### Battistello Caracciolo in Naples")
+        battistello_works = graph.get_artworks_by_artist("Battistello")
+        for art in battistello_works:
+            source_link = art.get('source_url', '')
+            dbpedia_link = art.get('dbpedia_page', '')
+            st.markdown(
+                f"""
+                <div class="art-card">
+                    <div class="art-title">{art['title']} ({art.get('year', '')})</div>
+                    <div class="art-meta"><strong>Location:</strong> {art['location']} | {art.get('dimensions', '')}</div>
+                    <div class="art-desc">{art.get('description', '')}</div>
+                    <details class="art-details">
+                        <summary>Provenance & External References</summary>
+                        <div class="art-links-container" style="border-top: none; padding-top: 4px; margin-top: 4px;">
+                            <a href="{source_link}" target="_blank" rel="noopener noreferrer" class="art-link">Wikipedia Article</a>
+                            <a href="{dbpedia_link}" target="_blank" rel="noopener noreferrer" class="art-link-secondary">DBpedia Resource</a>
+                        </div>
+                    </details>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("---")
+    st.markdown("#### Museum Venues in Naples")
+    venue_cols = st.columns(len(venues))
+    for idx, v in enumerate(venues):
+        with venue_cols[idx]:
+            v_source = v.get('source_url', '')
+            v_dbpedia = v.get('dbpedia_page', '')
+            st.markdown(
+                f"""
+                <div class="venue-card">
+                    <div class="venue-name">{v['name']}</div>
+                    <div class="venue-meta">{v.get('address', '')}</div>
+                    <div class="venue-meta"><strong>Preserved Works:</strong> {v.get('artwork_count', 0)}</div>
+                    <details class="art-details" style="margin-top: 6px; padding-top: 4px;">
+                        <summary>Venue References</summary>
+                        <div class="art-links-container" style="border-top: none; padding-top: 4px; margin-top: 2px;">
+                            <a href="{v_source}" target="_blank" rel="noopener noreferrer" class="art-link" style="padding:3px 8px; font-size:11px;">Wikipedia</a>
+                            <a href="{v_dbpedia}" target="_blank" rel="noopener noreferrer" class="art-link-secondary" style="padding:3px 8px; font-size:11px;">DBpedia</a>
+                        </div>
+                    </details>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("---")
+    with st.expander("SPARQL Query Specification (DBpedia Endpoint)"):
+        st.markdown("The foundational knowledge is obtained using standard SPARQL queries executed against DBpedia:")
+        st.code(
+            """
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dbr: <http://dbpedia.org/resource/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?artwork ?title ?museum ?abstract WHERE {
+    ?artwork dbo:author dbr:Caravaggio ;
+             rdfs:label ?title .
+    OPTIONAL { ?artwork dbo:museum ?museum }
+    OPTIONAL { ?artwork dbo:abstract ?abstract . FILTER(lang(?abstract) = 'en') }
+    FILTER (lang(?title) = 'en')
+} LIMIT 50
+            """,
+            language="sparql",
+        )
+
+

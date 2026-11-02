@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Architecture Graph | Neapolitan Artistic Heritage</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 30px;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        .header {
+            max-width: 1200px;
+            margin: 0 auto 25px auto;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 15px;
+        }
+        h1 {
+            font-size: 24px;
+            margin: 0 0 6px 0;
+            color: #0f172a;
+        }
+        p {
+            font-size: 14px;
+            color: #64748b;
+            margin: 0;
+        }
+        .card {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            overflow-x: auto;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Neapolitan Artistic Heritage Speech Dialogue System</h1>
+        <p>End-to-End System Pipeline Architecture Graph</p>
+    </div>
+
+    <div class="card">
+        <div class="mermaid">
+flowchart TD
+    %% Input Layer
+    subgraph UI ["User Interaction Layer (Web UI & CLI)"]
+        UserVoice["User Voice Input (Microphone Recording)"]
+        UserText["User Text Query (Keyboard Input)"]
+    end
+
+    %% Speech-to-Text Layer
+    subgraph ASR_Layer ["Speech Recognition (ASR) Engine"]
+        AudioNorm["Audio Normalization & Resampling (16 kHz Mono, Float32)"]
+        WhisperASR["OpenAI Whisper Model (Offline Local Inference)"]
+        TranscribedText["Transcribed Utterance (Text + Language Code)"]
+    end
+
+    %% Foundational Data Pipeline
+    subgraph Data_Pipeline ["Semantic Data Pipeline (DBpedia SPARQL)"]
+        DBpedia["DBpedia SPARQL Endpoint (https://dbpedia.org/sparql)"]
+        SPARQLClient["DBpediaSPARQLClient (Executes Semantic RDF Queries)"]
+        CuratedData["Curated Ground Truth Catalog (Authoritative Neapolitan Artworks)"]
+        CorpusCache["Corpus JSON Cache (dbpedia_cache.json)"]
+    end
+
+    %% Knowledge Graph Storage
+    subgraph Graph_Layer ["Knowledge Graph Engine (Dual Backend)"]
+        Neo4jStore["Neo4j Graph Store (Cypher Queries, Unique Constraints)"]
+        LocalSQLite["Embedded SQLite Graph Store (Zero-Dependency Relational Graph)"]
+        GraphSchema["Graph Schema: (:Artist)-[:PAINTED]->(:Artwork)-[:LOCATED_AT]->(:Location)"]
+    end
+
+    %% Dialogue & Reasoning Engine
+    subgraph Dialogue_Engine ["Dialogue Management & Reasoning Engine"]
+        StateTracker["Dialogue State Tracker (Discourse Memory & Anaphora Resolution)"]
+        InconsistencyDetector["Inconsistency Detection Engine (Artist, Location, City, Scope)"]
+        KnowledgeGenerator["Response Formulator (Scholarly, Academic, Grounded)"]
+    end
+
+    %% Speech Synthesis Layer
+    subgraph TTS_Layer ["Speech Synthesis (TTS) Engine"]
+        TTSSelector{"TTS Engine Selector"}
+        EdgeTTS["Neural Edge-TTS (en-GB-RyanNeural)"]
+        Pyttsx3["pyttsx3 Synthesizer (Offline Native Fallback)"]
+        AudioOutput["Synthesized Spoken Audio (MP3 / Audio Playback)"]
+    end
+
+    %% Connections
+    UserVoice --> AudioNorm
+    AudioNorm --> WhisperASR
+    WhisperASR --> TranscribedText
+    UserText --> TranscribedText
+
+    DBpedia --> SPARQLClient
+    CuratedData --> SPARQLClient
+    SPARQLClient --> CorpusCache
+    CorpusCache --> Neo4jStore
+    CorpusCache --> LocalSQLite
+    Neo4jStore --- GraphSchema
+    LocalSQLite --- GraphSchema
+
+    TranscribedText --> StateTracker
+    StateTracker --> InconsistencyDetector
+    LocalSQLite -. Queries .- InconsistencyDetector
+    Neo4jStore -. Queries .- InconsistencyDetector
+
+    InconsistencyDetector --> KnowledgeGenerator
+    LocalSQLite -. Ground Truth .- KnowledgeGenerator
+    Neo4jStore -. Ground Truth .- KnowledgeGenerator
+    StateTracker -. Active Context .- KnowledgeGenerator
+
+    KnowledgeGenerator --> TTSSelector
+    TTSSelector -->|Primary| EdgeTTS
+    TTSSelector -->|Fallback| Pyttsx3
+    EdgeTTS --> AudioOutput
+    Pyttsx3 --> AudioOutput
+
+    KnowledgeGenerator --> UI
+    AudioOutput --> UI
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    </script>
+</body>
+</html>

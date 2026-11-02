@@ -1,0 +1,387 @@
+{
+  "source": "DBpedia SPARQL Endpoint (https://dbpedia.org/sparql)",
+  "artists": {
+    "Caravaggio": {
+      "uri": "https://dbpedia.org/resource/Caravaggio",
+      "source_url": "https://en.wikipedia.org/wiki/Caravaggio",
+      "dbpedia_page": "https://dbpedia.org/page/Caravaggio",
+      "name": "Caravaggio (Michelangelo Merisi)",
+      "movement": "Baroque, Tenebrism, Chiaroscuro",
+      "birth_year": 1571,
+      "death_year": 1610,
+      "birth_place": "Milan, Duchy of Milan",
+      "death_place": "Porto Ercole, Grand Duchy of Tuscany",
+      "neapolitan_periods": "First Neapolitan stay (1606-1607), Second Neapolitan stay (1609-1610)",
+      "significance": "Pivotal influence on Neapolitan Baroque through stark naturalism and violent contrast of light and shade."
+    },
+    "Battistello Caracciolo": {
+      "uri": "https://dbpedia.org/resource/Battistello_Caracciolo",
+      "source_url": "https://en.wikipedia.org/wiki/Battistello_Caracciolo",
+      "dbpedia_page": "https://dbpedia.org/page/Battistello_Caracciolo",
+      "name": "Battistello Caracciolo (Giovanni Battista Caracciolo)",
+      "movement": "Neapolitan Caravaggism, Baroque",
+      "birth_year": 1578,
+      "death_year": 1635,
+      "birth_place": "Naples, Kingdom of Naples",
+      "death_place": "Naples, Kingdom of Naples",
+      "neapolitan_periods": "Lifelong resident and premier leader of the Neapolitan Caravaggisti school",
+      "significance": "Caravaggio's foremost follower in Naples, combining Caravaggio's tenebrism with Tuscan academic drawing."
+    }
+  },
+  "artworks": [
+    {
+      "uri": "https://dbpedia.org/resource/The_Seven_Works_of_Mercy_(Caravaggio)",
+      "source_url": "https://en.wikipedia.org/wiki/The_Seven_Works_of_Mercy_(Caravaggio)",
+      "dbpedia_page": "https://dbpedia.org/page/The_Seven_Works_of_Mercy_(Caravaggio)",
+      "title": "The Seven Works of Mercy",
+      "italian_title": "Sette opere di Misericordia",
+      "artist": "Caravaggio",
+      "artist_uri": "https://dbpedia.org/resource/Caravaggio",
+      "year": 1607,
+      "medium": "Oil on canvas",
+      "dimensions": "390 cm x 260 cm",
+      "location": "Pio Monte della Misericordia",
+      "location_uri": "https://dbpedia.org/resource/Pio_Monte_della_Misericordia",
+      "city": "Naples",
+      "address": "Via dei Tribunali 253, 80139 Napoli",
+      "description": "Caravaggio's most famous Neapolitan masterpiece, depicting the seven corporeal acts of mercy combined in a dramatic Neapolitan street setting.",
+      "subjects": [
+        "Seven Corporal Works of Mercy",
+        "Christian charity",
+        "Neapolitan street scene"
+      ]
+    },
+    {
+      "uri": "https://dbpedia.org/resource/The_Flagellation_of_Christ_(Caravaggio)",
+      "source_url": "https://en.wikipedia.org/wiki/The_Flagellation_of_Christ_(Caravaggio)",
+      "dbpedia_page": "https://dbpedia.org/page/The_Flagellation_of_Christ_(Caravaggio)",
+      "title": "The Flagellation of Christ",
+      "italian_title": "Flagellazione di Cristo",
+      "artist": "Caravaggio",
+      "artist_uri": "https://dbpedia.org/resource/Caravaggio",
+      "year": 1607,
+      "medium": "Oil on canvas",
+      "dimensions": "286 cm x 213 cm",
+      "location": "Museo Nazionale di Capodimonte",
+      "location_uri": "https://dbpedia.org/resource/National_Museum_of_Capodimonte",
+      "city": "Naples",
+      "address": "Via Miano 2, 80131 Napoli",
+      "description": "Commissioned by the de Franchis family for the Church of San Domenico Maggiore. It represents Christ tied to a column flanked by tormentors in extreme chiaroscuro.",
+      "subjects": [
+        "Passion of Christ",
+        "Flagellation",
+        "Chiaroscuro"
+      ]
+    },
+    {
+      "uri": "https://dbpedia.org/resource/The_Martyrdom_of_Saint_Ursula_(Caravaggio)",
+      "source_url": "https://en.wikipedia.org/wiki/The_Martyrdom_of_Saint_Ursula_(Caravaggio)",
+      "dbpedia_page": "https://dbpedia.org/page/The_Martyrdom_of_Saint_Ursula_(Caravaggio)",
+      "title": "The Martyrdom of Saint Ursula",
+      "italian_title": "Martirio di sant'Orsola",
+      "artist": "Caravaggio",
+      "artist_uri": "https://dbpedia.org/resource/Caravaggio",
+      "year": 1610,
+      "medium": "Oil on canvas",
+      "dimensions": "143 cm x 180 cm",
+      "location": "Gallerie d'Italia (Palazzo Zevallos Stigliano)",
+      "location_uri": "https://dbpedia.org/resource/Palazzo_Zevallos_Stigliano",
+      "city": "Naples",
+      "address": "Via Toledo 185, 80132 Napoli",
+      "description": "Recognized as Caravaggio's final painting, completed in Naples just weeks before his death in July 1610. Depicts Saint Ursula shot by the King of the Huns.",
+      "subjects": [
+        "Saint Ursula",
+        "Martyrdom",
+        "Self-portrait in background"
+      ]
+    },
+    {
+      "uri": "https://dbpedia.org/resource/The_Liberation_of_Saint_Peter_(Battistello)",
+      "source_url": "https://it.wikipedia.org/wiki/Liberazione_di_san_Pietro_(Caracciolo)",
+      "dbpedia_page": "https://dbpedia.org/page/Battistello_Caracciolo",
+      "title": "The Liberation of Saint Peter",
+      "italian_title": "Liberazione di san Pietro",
+      "artist": "Battistello Caracciolo",
+      "artist_uri": "https://dbpedia.org/resource/Battistello_Caracciolo",
+      "year": 1615,
+      "medium": "Oil on canvas",
+      "dimensions": "310 cm x 207 cm",
+      "location": "Pio Monte della Misericordia",
+      "location_uri": "https://dbpedia.org/resource/Pio_Monte_della_Misericordia",
+      "city": "Naples",
+      "address": "Via dei Tribunali 253, 80139 Napoli",
+      "description": "Caracciolo's masterpiece painted for the Pio Monte della Misericordia, directly dialoguing with Caravaggio's Seven Works of Mercy in the same chapel.",
+      "subjects": [
+        "Saint Peter",
+        "Angel",
+        "Deliverance",
+        "Caravaggesque chiaroscuro"
+      ]
+    },
+    {
+      "uri": "https://dbpedia.org/resource/Washing_of_the_Feet_(Battistello)",
+      "source_url": "https://it.wikipedia.org/wiki/Lavanda_dei_piedi_(Battistello_Caracciolo)",
+      "dbpedia_page": "https://dbpedia.org/page/Battistello_Caracciolo",
+      "title": "The Washing of the Feet",
+      "italian_title": "Lavanda dei piedi",
+      "artist": "Battistello Caracciolo",
+      "artist_uri": "https://dbpedia.org/resource/Battistello_Caracciolo",
+      "year": 1622,
+      "medium": "Oil on canvas",
+      "dimensions": "395 cm x 400 cm",
+      "location": "Certosa di San Martino",
+      "location_uri": "https://dbpedia.org/resource/Certosa_di_San_Martino",
+      "city": "Naples",
+      "address": "Largo San Martino 5, 80129 Napoli",
+      "description": "Monumental canvas created for the choir of the Certosa di San Martino, showcasing Battistello's mature Neapolitan Caravaggism influenced by Tuscan mannerism.",
+      "subjects": [
+        "Last Supper",
+        "Apostles",
+        "Humility of Christ"
+      ]
+    },
+    {
+      "uri": "https://dbpedia.org/resource/Christ_at_the_Column_(Battistello)",
+      "source_url": "https://it.wikipedia.org/wiki/Cristo_alla_colonna_(Battistello_Caracciolo)",
+      "dbpedia_page": "https://dbpedia.org/page/Battistello_Caracciolo",
+      "title": "Christ at the Column",
+      "italian_title": "Cristo alla colonna",
+      "artist": "Battistello Caracciolo",
+      "artist_uri": "https://dbpedia.org/resource/Battistello_Caracciolo",
+      "year": 1625,
+      "medium": "Oil on canvas",
+      "dimensions": "183 cm x 129 cm",
+      "location": "Museo Nazionale di Capodimonte",
+      "location_uri": "https://dbpedia.org/resource/National_Museum_of_Capodimonte",
+      "city": "Naples",
+      "address": "Via Miano 2, 80131 Napoli",
+      "description": "Intense depiction of Christ's suffering, directly responding to Caravaggio's Capodimonte Flagellation with tenebrist lighting and stark emotional restraint.",
+      "subjects": [
+        "Passion",
+        "Chiaroscuro",
+        "Tenebrism"
+      ]
+    },
+    {
+      "uri": "https://dbpedia.org/resource/Trinitas_Terrestris_(Battistello)",
+      "source_url": "https://it.wikipedia.org/wiki/Chiesa_della_Piet%C3%A0_dei_Turchini",
+      "dbpedia_page": "https://dbpedia.org/page/Battistello_Caracciolo",
+      "title": "Trinitas Terrestris",
+      "italian_title": "Trinità Terrestre e santi",
+      "artist": "Battistello Caracciolo",
+      "artist_uri": "https://dbpedia.org/resource/Battistello_Caracciolo",
+      "year": 1617,
+      "medium": "Oil on canvas",
+      "dimensions": "280 cm x 200 cm",
+      "location": "Chiesa della Pietà dei Turchini",
+      "location_uri": "https://dbpedia.org/resource/Chiesa_della_Pietà_dei_Turchini",
+      "city": "Naples",
+      "address": "Via Medina 19, 80133 Napoli",
+      "description": "Commissioned for the historic church in central Naples, portraying the earthly trinity (Jesus, Mary, and Joseph) with saints in deep Caravaggesque naturalism.",
+      "subjects": [
+        "Holy Family",
+        "Saint Gennaro",
+        "Earthly Trinity"
+      ]
+    },
+    {
+      "uri": "https://dbpedia.org/resource/Frescoes_of_the_Chapel_of_the_Assunta_(Battistello)",
+      "source_url": "https://it.wikipedia.org/wiki/Certosa_di_San_Martino",
+      "dbpedia_page": "https://dbpedia.org/page/Certosa_di_San_Martino",
+      "title": "Frescoes of the Chapel of the Assunta",
+      "italian_title": "Affreschi della Cappella dell'Assunta",
+      "artist": "Battistello Caracciolo",
+      "artist_uri": "https://dbpedia.org/resource/Battistello_Caracciolo",
+      "year": 1631,
+      "medium": "Fresco",
+      "dimensions": "Entire chapel vault",
+      "location": "Certosa di San Martino",
+      "location_uri": "https://dbpedia.org/resource/Certosa_di_San_Martino",
+      "city": "Naples",
+      "address": "Largo San Martino 5, 80129 Napoli",
+      "description": "Decorative cycle depicting the life of the Virgin Mary, standing among Battistello's highest achievements in fresco technique overlooking the Gulf of Naples.",
+      "subjects": [
+        "Assumption of the Virgin",
+        "Marian cycle",
+        "Fresco"
+      ]
+    }
+  ],
+  "venues": [
+    {
+      "name": "Pio Monte della Misericordia",
+      "uri": "https://dbpedia.org/resource/Pio_Monte_della_Misericordia",
+      "source_url": "https://en.wikipedia.org/wiki/Pio_Monte_della_Misericordia",
+      "dbpedia_page": "https://dbpedia.org/page/Pio_Monte_della_Misericordia",
+      "city": "Naples",
+      "address": "Via dei Tribunali 253, 80139 Napoli",
+      "description": "Historic charitable institution in the heart of Naples, holding Caravaggio's Seven Works of Mercy and Caracciolo's Liberation of Saint Peter in the high chapel.",
+      "coordinates": {
+        "latitude": 40.8522,
+        "longitude": 14.2619
+      }
+    },
+    {
+      "name": "Museo Nazionale di Capodimonte",
+      "uri": "https://dbpedia.org/resource/Museo_di_Capodimonte",
+      "source_url": "https://en.wikipedia.org/wiki/National_Museum_of_Capodimonte",
+      "dbpedia_page": "https://dbpedia.org/page/National_Museum_of_Capodimonte",
+      "city": "Naples",
+      "address": "Via Miano 2, 80131 Napoli",
+      "description": "Grand Bourbon palace overlooking Naples, housing the Farnese Collection and Caravaggio's Flagellation along with Battistello's Christ at the Column.",
+      "coordinates": {
+        "latitude": 40.8672,
+        "longitude": 14.2503
+      }
+    },
+    {
+      "name": "Gallerie d'Italia (Palazzo Zevallos Stigliano)",
+      "uri": "https://dbpedia.org/resource/Palazzo_Zevallos_Stigliano",
+      "source_url": "https://en.wikipedia.org/wiki/Palazzo_Zevallos_Stigliano",
+      "dbpedia_page": "https://dbpedia.org/page/Palazzo_Zevallos_Stigliano",
+      "city": "Naples",
+      "address": "Via Toledo 185, 80132 Napoli",
+      "description": "Noble palace on Via Toledo housing Caravaggio's final masterpiece, The Martyrdom of Saint Ursula.",
+      "coordinates": {
+        "latitude": 40.8403,
+        "longitude": 14.2492
+      }
+    },
+    {
+      "name": "Certosa di San Martino",
+      "uri": "https://dbpedia.org/resource/Certosa_di_San_Martino",
+      "source_url": "https://en.wikipedia.org/wiki/Certosa_di_San_Martino",
+      "dbpedia_page": "https://dbpedia.org/page/Certosa_di_San_Martino",
+      "city": "Naples",
+      "address": "Largo San Martino 5, 80129 Napoli",
+      "description": "Monastery complex on the Vomero hill with panoramic views of the Gulf, featuring Battistello Caracciolo's Washing of the Feet and Chapel of the Assunta frescoes.",
+      "coordinates": {
+        "latitude": 40.8436,
+        "longitude": 14.2417
+      }
+    },
+    {
+      "name": "Chiesa della Pietà dei Turchini",
+      "uri": "https://dbpedia.org/resource/Chiesa_della_Pietà_dei_Turchini",
+      "source_url": "https://it.wikipedia.org/wiki/Chiesa_della_Piet%C3%A0_dei_Turchini",
+      "dbpedia_page": "https://dbpedia.org/page/Chiesa_della_Piet%C3%A0_dei_Turchini",
+      "city": "Naples",
+      "address": "Via Medina 19, 80133 Napoli",
+      "description": "Baroque church in central Naples preserving Battistello Caracciolo's Trinitas Terrestris.",
+      "coordinates": {
+        "latitude": 40.8415,
+        "longitude": 14.2527
+      }
+    }
+  ],
+  "non_neapolitan_artworks": [
+    {
+      "title": "The Calling of Saint Matthew",
+      "artist": "Caravaggio",
+      "city": "Rome",
+      "location": "San Luigi dei Francesi"
+    },
+    {
+      "title": "The Martyrdom of Saint Matthew",
+      "artist": "Caravaggio",
+      "city": "Rome",
+      "location": "San Luigi dei Francesi"
+    },
+    {
+      "title": "The Inspiration of Saint Matthew",
+      "artist": "Caravaggio",
+      "city": "Rome",
+      "location": "San Luigi dei Francesi"
+    },
+    {
+      "title": "Judith Beheading Holofernes",
+      "artist": "Caravaggio",
+      "city": "Rome",
+      "location": "Galleria Nazionale d'Arte Antica (Palazzo Barberini)"
+    },
+    {
+      "title": "The Conversion of Saint Paul",
+      "artist": "Caravaggio",
+      "city": "Rome",
+      "location": "Santa Maria del Popolo"
+    },
+    {
+      "title": "Crucifixion of Saint Peter",
+      "artist": "Caravaggio",
+      "city": "Rome",
+      "location": "Santa Maria del Popolo"
+    },
+    {
+      "title": "David with the Head of Goliath",
+      "artist": "Caravaggio",
+      "city": "Rome",
+      "location": "Galleria Borghese"
+    },
+    {
+      "title": "Boy with a Basket of Fruit",
+      "artist": "Caravaggio",
+      "city": "Rome",
+      "location": "Galleria Borghese"
+    },
+    {
+      "title": "Bacchus",
+      "artist": "Caravaggio",
+      "city": "Florence",
+      "location": "Uffizi Gallery"
+    },
+    {
+      "title": "Medusa",
+      "artist": "Caravaggio",
+      "city": "Florence",
+      "location": "Uffizi Gallery"
+    },
+    {
+      "title": "The Sacrifice of Isaac",
+      "artist": "Caravaggio",
+      "city": "Florence",
+      "location": "Uffizi Gallery"
+    },
+    {
+      "title": "Death of the Virgin",
+      "artist": "Caravaggio",
+      "city": "Paris",
+      "location": "Louvre Museum"
+    },
+    {
+      "title": "The Fortune Teller",
+      "artist": "Caravaggio",
+      "city": "Paris",
+      "location": "Louvre Museum"
+    },
+    {
+      "title": "The Beheading of Saint John the Baptist",
+      "artist": "Caravaggio",
+      "city": "Valletta",
+      "location": "St. John's Co-Cathedral (Malta)"
+    },
+    {
+      "title": "The Burial of Saint Lucy",
+      "artist": "Caravaggio",
+      "city": "Syracuse",
+      "location": "Santa Lucia al Sepolcro (Sicily)"
+    },
+    {
+      "title": "Mona Lisa",
+      "artist": "Leonardo da Vinci",
+      "city": "Paris",
+      "location": "Louvre Museum"
+    },
+    {
+      "title": "The Last Supper",
+      "artist": "Leonardo da Vinci",
+      "city": "Milan",
+      "location": "Santa Maria delle Grazie"
+    },
+    {
+      "title": "The School of Athens",
+      "artist": "Raphael",
+      "city": "Vatican City",
+      "location": "Apostolic Palace"
+    }
+  ]
+}

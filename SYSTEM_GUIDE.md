@@ -1,161 +1,107 @@
-# Natural Language Processing - Project Guide & Documentation
+# Neapolitan Artistic Heritage Speech Dialogue System
+## Technical Architecture & Execution Manual
 
-This repository contains the complete implementation of the university project for the **Corso di Natural Language Processing**, covering both **Step 1** and **Step 2**.
+**Course:** Natural Language Processing  
+**Institution:** University of Naples Federico II  
+**Domain:** Works by Caravaggio and Battistello Caracciolo visitable in the urban area of Naples
 
 ---
 
-## 🏛 System Architecture Overview
+## 1. Modular Architecture Overview
 
-```text
-                               +-----------------------------+
-                               |     User Voice / Mic        |
-                               +--------------+--------------+
-                                              |
-                                              v
-                              +---------------+---------------+
-                              |    Speaker Identification     |
-                              |  (ECAPA-TDNN / Embeddings)   |
-                              +---------------+---------------+
-                                              | Speaker Identity & Preferences
-                                              v
-+-------------------------+   +---------------+---------------+
-| Automatic Speech Recog. |-->|   "Which Quote?" Chatbot      |
-|    (Whisper ASR)        |   |   Conversational Agent        |
-+-------------------------+   +---------------+---------------+
-                                              |
-                     +------------------------+------------------------+
-                     |                                                 |
-                     v                                                 v
-      +------------------------------+                 +-------------------------------+
-      |    Step 1: Graph Database    |                 |   Personalized TTS Synthesizer|
-      |   - Quotes, Authors, Works   |                 |   - Voice: Persona & Accents  |
-      |   - Full-Text Search (FTS)   |                 |   - Rate & Pitch Controls     |
-      |   - Citation Autocomplete    |                 +---------------+---------------+
-      +------------------------------+                                 | Spoken Audio
-                                                                       v
-                                                       +---------------+---------------+
-                                                       |     Audio Playback/Output     |
-                                                       +-------------------------------+
 ```
-
----
-
-## 📁 Repository Structure
-
-```text
 NLP-Project/
-├── .venv/                      # Isolated Python 3.11 Virtual Environment
-├── requirements.txt            # Project dependencies
-├── pytest.ini                  # Pytest configuration
+├── app.py                         # Streamlit Light-Mode UI (Voice, Chat, State, Graph, Inspector)
 ├── config/
-│   └── settings.py             # Configurable database, model, and path settings
+│   └── settings.py                # System settings (SPARQL, Neo4j, ASR, TTS, paths)
 ├── src/
-│   ├── step1_graph/            # Step 1: Wikiquote Graph & Autocomplete
-│   │   ├── parser.py           # Streaming XML parser for MediaWiki dumps
-│   │   ├── graph_db.py         # Dual Graph Database (Local SQLite+FTS5 & Neo4j)
-│   │   └── autocomplete.py     # Autocomplete engine & citation search
-│   ├── step2_voice/            # Step 2: "Which Quote?" Interactive Voice System
-│   │   ├── asr.py              # Automatic Speech Recognition (OpenAI Whisper)
-│   │   ├── speaker_id.py       # Voice enrollment & cosine-similarity recognition
-│   │   ├── tts.py              # Personalized multi-voice Text-to-Speech synthesizer
-│   │   └── chatbot.py          # Dialogue manager coordinating voice + graph DB
+│   ├── data_pipeline/
+│   │   ├── curated_dataset.py     # Authoritative Neapolitan masterworks & ground-truth entities
+│   │   ├── sparql_client.py       # DBpedia SPARQL Wrapper (fetches and enriches RDF triples)
+│   │   └── graph_db.py            # Dual Graph Engine (Neo4j Cypher + Standalone Local SQLite)
+│   ├── dialogue/
+│   │   ├── inconsistency.py       # Contradiction Detection Engine (Attribution, Venue, City, Scope)
+│   │   ├── state_tracker.py       # Multi-Turn Dialogue State & Discourse Coreference Tracker
+│   │   └── chatbot.py             # Academic Knowledge-Grounded Conversational Dialogue Manager
+│   ├── speech/
+│   │   ├── asr.py                 # OpenAI Whisper ASR (robust float32 audio transcription)
+│   │   ├── tts.py                 # Neural Edge-TTS Synthesizer with Offline pyttsx3 Fallback
+│   │   └── speech_chatbot.py      # Unified Multimodal Voice Pipeline (Audio in -> Audio out)
 │   └── utils/
-│       ├── audio_utils.py      # Audio recording, loading, and playback
-│       └── text_utils.py       # MediaWiki markup stripping & text normalization
+│       └── audio_utils.py         # Audio normalization, resampling (16kHz mono), and format converters
 ├── scripts/
-│   ├── download_dump.py        # Wikimedia dump downloader with progress tracking
-│   ├── build_graph.py          # Graph builder script (seed data or full dump)
-│   └── enroll_speaker.py       # Interactive voice enrollment CLI
+│   ├── build_graph.py             # Automated graph population and verification script
+│   └── interactive_cli.py         # Terminal-based conversational evaluation interface
 ├── tests/
-│   └── test_pipeline.py        # Automated test suite
-└── main.py                     # Master unified interactive CLI & live demo
+│   ├── conftest.py                # Pytest path and environment fixtures
+│   ├── test_dialogue.py           # Multi-turn conversation and pronoun resolution tests
+│   └── test_inconsistency.py      # Automated tests for all inconsistency types
+└── data/
+    ├── dbpedia_cache.json         # Cached snapshot of DBpedia RDF query results
+    └── neapolitan_art_graph.db    # Embedded SQLite knowledge graph
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## 2. Step-by-Step Module Execution
 
-### 1. Activate Environment
-The virtual environment is located at `.venv`:
+### Step 1: SPARQL Ingestion & Graph Building
+To query DBpedia (`https://dbpedia.org/sparql`) and construct the knowledge graph:
 ```bash
-source .venv/bin/activate
+.venv/bin/python scripts/build_graph.py
+```
+This executes:
+1. Dynamic SPARQL queries on DBpedia for Caravaggio and Battistello Caracciolo.
+2. Neo4j connectivity check and schema constraint initialization.
+3. Graph node and edge population with fallback to local SQLite graph store.
+4. Summary verification of all cataloged works across Neapolitan venues.
+
+### Step 2: Running Automated Pytest Test Suite
+To verify dialogue state tracking and inconsistency detection algorithms:
+```bash
+.venv/bin/pytest tests/
+```
+All unit tests validate:
+- Artist attribution contradiction detection (e.g., claiming Battistello painted *The Seven Works of Mercy*).
+- Venue mismatch contradiction detection (e.g., claiming *The Seven Works of Mercy* is at Capodimonte).
+- Geographic mismatch contradiction detection (e.g., asking for Roman works like *The Calling of Saint Matthew* in Naples).
+- Out-of-scope artist filtering (e.g., Leonardo da Vinci).
+- Multi-turn state resolution and coreference handling.
+
+### Step 3: Interactive Command Line Interface (CLI)
+To test conversation turns directly from the terminal:
+```bash
+.venv/bin/python scripts/interactive_cli.py
 ```
 
-### 2. Populate Seed Quotes (or Download Full Dump)
-To immediately populate the graph database with famous quotes:
+### Step 4: Web Application (Streamlit)
+To launch the complete speech dialogue web application:
 ```bash
-python scripts/build_graph.py --seed
+.venv/bin/streamlit run app.py --server.port 8502
 ```
-
-To download and parse the official Wikimedia dump:
-```bash
-# Optional: Download dump (or a slice)
-python scripts/download_dump.py --limit-mb 50
-
-# Ingest dump into graph database
-python scripts/build_graph.py --dump data/raw/enwikiquote-latest-pages-articles.xml.bz2 --max 5000
-```
-
-### 3. Launching the Web Application (Streamlit + FastAPI)
-
-#### Option A: Run Streamlit Directly
-```bash
-streamlit run app.py --server.port 8502
-```
-Access the modern UI at: **`http://localhost:8502`**
-
-#### Option B: Run via FastAPI Microservice
-In terminal 1 (start FastAPI backend):
-```bash
-uvicorn src.api.server:app --port 8000 --reload
-```
-Interactive Swagger API docs available at: **`http://localhost:8000/docs`**
-
-In terminal 2 (start Streamlit frontend):
-```bash
-streamlit run app.py --server.port 8502
-```
-
-### 4. Run the Interactive Unified CLI Demo
-Launch the console demo:
-```bash
-python main.py
-```
-
-Menu options available:
-- **[1] Step 1: Wikiquote Graph Autocompletion Demo**: Test typing citation beginnings (e.g., `"Stay hungry"`, `"To be, or not"`, `"Imagination is"`) to see real-time completions with author and work attribution.
-- **[2] Step 2: "Which Quote?" Voice Agent**: Speak directly into the microphone for 4 seconds; the system identifies who spoke, transcribes the speech, retrieves quotes, and replies with a personalized voice.
-- **[3] Step 2: "Which Quote?" Chatbot (Text Mode)**: Interactive conversational interface supporting autocomplete, author lookup (*"Who said darkness cannot drive out darkness?"*), and quiz games (*"quiz"*).
-- **[4] Register / Enroll a New Speaker Profile**: Enroll your voice and choose your favorite response persona (Male, Female, Formal, Casual) and pitch/rate adjustments.
-- **[5] View Graph Database Statistics**: Inspect current quote and author counts.
-
-### 4. Direct CLI Commands
-You can also run specific modes directly:
-```bash
-# Step 1 interactive autocompleter
-python main.py --step 1
-
-# Step 2 interactive voice conversation
-python main.py --step 2
-
-# Step 2 interactive text chat
-python main.py --step text
-
-# Database statistics
-python main.py --step stats
-```
+Access via browser at `http://localhost:8502`.
 
 ---
 
-## 🧪 Running Automated Tests
+## 3. Inconsistency Detection Taxonomy
 
-Run the full pytest suite to verify all components:
-```bash
-pytest tests/test_pipeline.py -v
-```
-All unit tests cover:
-- MediaWiki markup stripping & citation parsing.
-- Graph database nodes, edges, and full-text index querying.
-- Quote autocompletion and score ranking.
-- Speaker identification and voice profile enrollment.
-- Whisper ASR and Personalized TTS synthesis.
+The system detects four primary classes of user contradictions:
+
+| Violation Class | Example User Question | Detected Contradiction | Ground-Truth Correction |
+|---|---|---|---|
+| **Artist Mismatch** | *"Did Battistello paint The Seven Works of Mercy?"* | Attributing Caravaggio's work to Battistello | Caravaggio painted it in 1607 for Pio Monte della Misericordia. |
+| **Venue Mismatch** | *"Can I see The Seven Works of Mercy at Capodimonte?"* | Misidentifying museum venue in Naples | It is permanently located at Pio Monte della Misericordia (Via dei Tribunali). |
+| **City Mismatch** | *"Where can I see The Calling of Saint Matthew in Naples?"* | Asking for non-Neapolitan artwork | The painting is in Rome at the Church of San Luigi dei Francesi. |
+| **Out-of-Scope Artist** | *"Are there works by Leonardo da Vinci in Naples?"* | Asking about uncataloged master | Focus is strictly Caravaggio and Battistello Caracciolo in Naples. |
+
+---
+
+## 4. Multi-Turn Dialogue State Representation
+
+At each conversation turn, the dialogue state tracker maintains:
+- `active_artist`: e.g., `Caravaggio` or `Battistello Caracciolo`
+- `active_artwork`: e.g., `The Seven Works of Mercy`
+- `active_location`: e.g., `Pio Monte della Misericordia`
+- `turn_counter`: integer sequence index
+- `history`: full chronological list of dialogue turns and responses
+- `inconsistency_history`: log of all flagged user contradictions

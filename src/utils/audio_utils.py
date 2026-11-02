@@ -1,72 +1,59 @@
-import os
-import wave
+"""
+Audio utility functions for speech input/output processing.
+Handles conversion, resampling, and format normalization for ASR and TTS.
+"""
+
+import io
+import logging
+import tempfile
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 import numpy as np
+import soundfile as sf
+from scipy.signal import resample
+
+logger = logging.getLogger(__name__)
 
 
-def record_audio(output_filepath: str, duration: float = 4.0, sample_rate: int = 16000) -> str:
+def load_and_normalize_audio(file_path_or_bytes: Any, target_sr: int = 16000) -> Tuple[np.ndarray, int]:
     """
-    Records audio from the default microphone and saves it as a 16kHz mono WAV file.
-    """
-    try:
-        import sounddevice as sd
-    except ImportError:
-        raise RuntimeError("sounddevice is not installed. Please install it using pip.")
-
-    print(f"[*] Recording for {duration} seconds... Speak now!")
-    audio_data = sd.rec(int(duration * sample_rate), samplerate=sample_rate, channels=1, dtype="int16")
-    sd.wait()
-    print("[*] Recording complete.")
-
-    os.makedirs(os.path.dirname(os.path.abspath(output_filepath)), exist_ok=True)
-    with wave.open(output_filepath, "wb") as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)  # 16-bit PCM
-        wf.setframerate(sample_rate)
-        wf.writeframes(audio_data.tobytes())
-
-    return output_filepath
-
-
-def load_audio(filepath: str, target_sr: int = 16000) -> Tuple[np.ndarray, int]:
-    """
-    Loads an audio file as a mono float32 array normalized between -1.0 and 1.0.
+    Load an audio file or bytes buffer, convert to mono float32, and resample to target_sr.
+    Safe against format mismatches and guarantees valid ndarray output.
     """
     try:
-        import soundfile as sf
-    except ImportError:
-        raise RuntimeError("soundfile is not installed. Please install it using pip.")
-
-    data, sr = sf.read(filepath, dtype="float32")
-
-    # Convert to mono if multi-channel
-    if data.ndim > 1:
-        data = np.mean(data, axis=1)
-
-    # Simple resampling using scipy if sample rate differs
-    if sr != target_sr:
-        from scipy import signal
-        num_samples = int(len(data) * target_sr / sr)
-        data = signal.resample(data, num_samples)
-        sr = target_sr
-
-    return data, sr
-
-
-def play_audio(filepath: str) -> None:
-    """
-    Plays an audio file through system speakers.
-    """
-    try:
-        import sounddevice as sd
-        import soundfile as sf
-        data, fs = sf.read(filepath)
-        sd.play(data, fs)
-        sd.wait()
-    except Exception as e:
-        # Fallback to macOS afplay command if sounddevice playback fails
-        if os.system(f"which afplay > /dev/null 2>&1") == 0:
-            os.system(f"afplay '{filepath}'")
+        if isinstance(file_path_or_bytes, (str, Path)):
+            data, sample_rate = sf.read(str(file_path_or_bytes), dtype="float32")
+        elif isinstance(file_path_or_bytes, bytes):
+            buffer = io.BytesIO(file_path_or_bytes)
+            data, sample_rate = sf.read(buffer, dtype="float32")
         else:
-            print(f"[!] Warning: Audio playback failed: {e}")
+            raise ValueError(f"Unsupported audio input type: {type(file_path_or_bytes)}")
+
+        # Convert multi-channel to mono
+        if len(data.shape) > 1:
+            data = np.mean(data, axis=1)
+
+        # Resample if needed
+        if sample_rate != target_sr:
+            num_target_samples = int(len(data) * float(target_sr) / sample_rate)
+            data = resample(data, num_target_samples).astype(np.float32)
+            sample_rate = target_sr
+
+        # Peak normalization to maximize SNR for accented / quiet microphone input
+        max_amplitude = np.max(np.abs(data))
+        if max_amplitude > 1e-4:
+            data = (data / max_amplitude * 0.95).astype(np.float32)
+
+        return data.astype(np.float32), sample_rate
+
+    except Exception as exc:
+        logger.error("Failed to load and normalize audio: %s", exc)
+        # Return fallback silent audio array of 1 second to prevent local variable crashes
+        return np.zeros(target_sr, dtype=np.float32), target_sr
+
+
+def save_audio_to_temp_wav(audio_bytes: bytes) -> str:
+    """Save raw audio bytes to a temporary WAV file and return path."""
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        tmp.write(audio_bytes)
+        return tmp.name
