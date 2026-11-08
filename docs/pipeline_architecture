@@ -1,0 +1,137 @@
+// Neapolitan Artistic Heritage Multimodal Architecture (Vertical Flow)
+digraph Neapolitan_Art_Pipeline_Vertical {
+	bgcolor="#ffffff" compound=true dpi=300 margin=0.06 nodesep=0.22 rankdir=TB ranksep=0.20 splines=spline
+	node [color="#222222" fontname=Helvetica fontsize=9.0 shape=none]
+	edge [arrowsize=0.65 color="#333333" fontcolor="#111111" fontname=Helvetica fontsize=7.6 penwidth=1.0]
+	subgraph cluster_tier1 {
+		bgcolor="#fafafa" color="#555555" fontcolor="#000000" fontname="Helvetica-Bold" fontsize=9.0 label="  TIER I: MULTIMODAL INGESTION & ACOUSTICS" labeljust=l margin=8 style="rounded,solid"
+		node_ingest [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>1. Multimodal Ingestion</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Mic Stream (16 kHz) / Text Input</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Streamlit WebSocket Client Hub</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• In-Memory Float32 Audio Buffer</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_asr [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>2. Acoustic Engineering</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• OpenAI Whisper Small (244M params)</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Peak Amplitude Norm: 0.95 · x / max|x|</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• 80-Channel Log-Mel Filterbank</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Art-Historical Prompt Token Prior</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_phonetic [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>3. Phonetic Normalizer</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Prep Correction: 'for' -&gt; 'of'</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Italian Degemination ('caravagio')</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Dialectal Spacing ('capo di monte')</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Ordinal Numeral Normalization</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_ingest -> node_asr [label=" Audio Stream"]
+		node_asr -> node_phonetic [label=" Raw ASR Text"]
+	}
+	subgraph cluster_tier2 {
+		bgcolor="#fafafa" color="#555555" fontcolor="#000000" fontname="Helvetica-Bold" fontsize=9.0 label="  TIER II: SEMANTIC PARSING & GUARDRAILS" labeljust=l margin=8 style="rounded,solid"
+		node_parser [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>4. Entity &amp; Intent Parser</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• 8 Masterwork Titles &amp; Italian Aliases</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Caravaggio / Battistello Lexicon</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• 5 Neapolitan Historic Sanctuaries</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• 8-Route Intent Keyword Classifier</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_dst [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>5. Discourse Tracker (DST)</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• State: S(t) = &lt;e_art, e_artist, e_venue&gt;</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Anaphoric Coreference ('it', 'this work')</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Recency Window Limit (W &#8804; 3 Turns)</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Context Isolation &amp; Topic Reset</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_guardrail [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>6. Inconsistency Guardrail</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• 5-Predicate Truth Verification</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• I_artist: Attribution Contradiction</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• I_venue: Location Contradiction</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• I_city / I_scope: Scope Boundaries</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_parser -> node_dst [label=" Entities & Intent"]
+		node_dst -> node_guardrail [label=" State Tuple S(t)"]
+	}
+	subgraph cluster_tier3 {
+		bgcolor="#fafafa" color="#555555" fontcolor="#000000" fontname="Helvetica-Bold" fontsize=9.0 label="  TIER III: KNOWLEDGE GRAPH & QUERY ROUTING" labeljust=l margin=8 style="rounded,solid"
+		node_router [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>7. Query Selection Router</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Deterministic Decision Tree</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Parameterized Cypher/SQL Dispatch</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Entity Priority: Art &gt; Loc &gt; Artist</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Global Overview &amp; Fallback Dispatch</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_graph [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>8. Dual Knowledge Graph</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Primary: Neo4j 5.x Cypher Bolt Driver</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Fallback: Embedded SQLite 3 Store</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Zero-Downtime Heartbeat Circuit</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Sub-2ms Graph Query Execution</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_dbpedia [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>9. DBpedia SPARQL Ingestion</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• W3C SPARQL 1.1 Live Harvesting</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Biographical Dates, Places, Abstracts</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Atomic Local JSON Cache Snapshot</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Schema Uniqueness Constraints</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_router -> node_graph [label=" Query Exec"]
+		node_graph -> node_dbpedia [label=" Linked Enrichment"]
+	}
+	subgraph cluster_tier4 {
+		bgcolor="#fafafa" color="#555555" fontcolor="#000000" fontname="Helvetica-Bold" fontsize=9.0 label="  TIER IV: GENERATION & MULTIMODAL DELIVERY" labeljust=l margin=8 style="rounded,solid"
+		node_nlg [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>10. Curatorial NLG Engine</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Fluent Speech-Optimized Prose</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Eliminates Key-Value Serializations</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Pedagogical Reframing of Errors</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Proactive Inquiry Prompts</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_tts [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>11. Neural Edge-TTS Voice</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Microsoft Edge Neural Voice (24 kHz)</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• en-GB-RyanNeural British Cadence</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Offline pyttsx3 Synthesis Fallback</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• 420 ms Audio Streaming Pipeline</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_client [label=<
+            <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#FFFFFF" COLOR="#333333">
+                <TR><TD BGCOLOR="#000000" ALIGN="CENTER"><FONT COLOR="#FFFFFF" POINT-SIZE="9.5"><B>12. Client Presentation UI</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Streamlit Light Reactive Web App</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Native In-Browser HTML5 Player</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Live Discourse State Badges</FONT></TD></TR>
+                <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8.0" COLOR="#333333">• Multi-Turn Audit Transcript</FONT></TD></TR>
+            </TABLE>
+            >]
+		node_nlg -> node_tts [label=" Prose Text"]
+		node_tts -> node_client [label=" 24 kHz MP3"]
+	}
+	node_phonetic -> node_parser [label=" Cleaned Query"]
+	node_guardrail -> node_router [label=" Verified Query (No Contradiction)"]
+	node_guardrail -> node_nlg [label=" Contradiction Override (Pedagogical Reframing)" color="#000000" penwidth=1.3 style=dashed]
+	node_dbpedia -> node_nlg [label=" Retrieved Knowledge Tuples"]
+}
