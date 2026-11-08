@@ -1,8 +1,3 @@
-"""
-Interactive CLI for evaluating the Neapolitan Art Speech Chatbot.
-Enables rapid testing of conversation turns, state tracking, and inconsistency detection.
-"""
-
 import sys
 from pathlib import Path
 

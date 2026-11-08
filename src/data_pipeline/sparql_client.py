@@ -1,8 +1,3 @@
-"""
-DBpedia SPARQL Client module for Neapolitan artistic heritage.
-Queries DBpedia endpoint for artworks, artists, and museum locations.
-"""
-
 import json
 import logging
 from pathlib import Path
@@ -16,11 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 class DBpediaSPARQLClient:
-    """
-    SPARQL Client configured to query DBpedia for Caravaggio and
-    Battistello Caracciolo artworks, locations, and historical properties.
-    """
-
     def __init__(
         self,
         endpoint_url: Optional[str] = None,
@@ -37,9 +27,6 @@ class DBpediaSPARQLClient:
         self.sparql.addCustomHttpHeader("User-Agent", config.sparql.user_agent)
 
     def execute_query(self, query: str) -> List[Dict[str, Any]]:
-        """
-        Execute an arbitrary SPARQL query against DBpedia and return raw binding dicts.
-        """
         try:
             self.sparql.setQuery(query)
             response = self.sparql.query().convert()
@@ -51,9 +38,6 @@ class DBpediaSPARQLClient:
             return []
 
     def fetch_caravaggio_works_from_dbpedia(self) -> List[Dict[str, str]]:
-        """
-        Query DBpedia for works authored by Caravaggio with museum and label information.
-        """
         query = """
         PREFIX dbo: <http://dbpedia.org/ontology/>
         PREFIX dbr: <http://dbpedia.org/resource/>
@@ -79,9 +63,6 @@ class DBpediaSPARQLClient:
         return extracted
 
     def fetch_artist_dbpedia_profile(self, artist_uri: str) -> Dict[str, Any]:
-        """
-        Query DBpedia for artist metadata: birth, death, places, and abstracts.
-        """
         query = f"""
         PREFIX dbo: <http://dbpedia.org/ontology/>
         PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -111,11 +92,6 @@ class DBpediaSPARQLClient:
         return {}
 
     def fetch_neapolitan_corpus(self, force_refresh: bool = False) -> Dict[str, Any]:
-        """
-        Retrieve complete Neapolitan knowledge corpus.
-        Enriches curated ground-truth with live DBpedia SPARQL data.
-        Saves snapshot to cache for offline reproducibility.
-        """
         if not force_refresh and self.cache_file.exists():
             try:
                 with open(self.cache_file, "r", encoding="utf-8") as f:
@@ -128,7 +104,6 @@ class DBpediaSPARQLClient:
 
         logger.info("Querying DBpedia SPARQL endpoint to construct fresh Neapolitan corpus...")
 
-        # 1. Fetch artist profiles from DBpedia
         artists = {
             "Caravaggio": {
                 "uri": "https://dbpedia.org/resource/Caravaggio",
@@ -158,7 +133,6 @@ class DBpediaSPARQLClient:
             },
         }
 
-        # Query live DBpedia abstracts to enrich profiles
         for artist_key, artist_data in artists.items():
             dbpedia_profile = self.fetch_artist_dbpedia_profile(artist_data["uri"])
             if dbpedia_profile:
@@ -169,12 +143,10 @@ class DBpediaSPARQLClient:
                 if dbpedia_profile.get("death_date"):
                     artist_data["dbpedia_death_date"] = dbpedia_profile["death_date"]
 
-        # 2. Enrich artworks with live DBpedia queries
         artworks = []
         for item in NEAPOLITAN_ARTWORKS:
             artwork_dict = dict(item)
             artwork_uri = artwork_dict["uri"]
-            # Query DBpedia for specific artwork abstract, description, image, and dimensions
             query = f"""
             PREFIX dbo: <http://dbpedia.org/ontology/>
             PREFIX dbp: <http://dbpedia.org/property/>
@@ -206,7 +178,6 @@ class DBpediaSPARQLClient:
 
             artworks.append(artwork_dict)
 
-        # 3. Compile locations and venues
         venues = [
             {
                 "name": "Pio Monte della Misericordia",
@@ -268,7 +239,6 @@ class DBpediaSPARQLClient:
             "non_neapolitan_artworks": NON_NEAPOLITAN_ARTWORKS,
         }
 
-        # Cache payload
         try:
             self.cache_file.parent.mkdir(parents=True, exist_ok=True)
             with open(self.cache_file, "w", encoding="utf-8") as f:

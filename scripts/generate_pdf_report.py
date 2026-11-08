@@ -1,11 +1,9 @@
 """
-Academic Technical Report Generator (Comprehensive 12-Page Monograph)
-Neapolitan Artistic Heritage Multimodal Dialogue System
-University of Naples Federico II - DIETI
+Technical report generator for the Neapolitan Artistic Heritage Dialogue System.
+Natural Language Processing course project, University of Naples Federico II (DIETI).
 """
 
 import sys
-import os
 from pathlib import Path
 
 from reportlab.lib.pagesizes import letter
@@ -22,21 +20,17 @@ from reportlab.platypus import (
     PageBreak,
     Image,
 )
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
-# Ensure project root is in python path
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.data_pipeline.curated_dataset import NEAPOLITAN_ARTWORKS
-from src.data_pipeline.graph_db import NeapolitanArtGraph
 
+class NumberedCanvas(canvas.Canvas):
+    """Two-pass canvas so headers/footers know the final page count."""
 
-class AcademicNumberedCanvas(canvas.Canvas):
-    """
-    Two-pass canvas for exact page counting, running headers, and running footers.
-    """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_page_states = []
@@ -58,1269 +52,866 @@ class AcademicNumberedCanvas(canvas.Canvas):
         self.setFont("Helvetica", 7.5)
         self.setFillColor(colors.HexColor("#444444"))
 
-        # Running header on pages 2+
         if self._pageNumber > 1:
-            self.drawString(50, 752, "Neapolitan Artistic Heritage Multimodal Dialogue System — Technical Monograph")
-            self.drawRightString(562, 752, "University of Naples Federico II | DIETI")
-            self.setStrokeColor(colors.HexColor("#888888"))
+            self.drawString(50, 752, "Neapolitan Artistic Heritage Dialogue System")
+            self.drawRightString(562, 752, "University of Naples Federico II — DIETI")
+            self.setStrokeColor(colors.HexColor("#999999"))
             self.setLineWidth(0.5)
             self.line(50, 745, 562, 745)
 
-        # Running footer on all pages
-        self.setStrokeColor(colors.HexColor("#888888"))
+        self.setStrokeColor(colors.HexColor("#999999"))
         self.setLineWidth(0.5)
         self.line(50, 44, 562, 44)
-
-        self.drawString(50, 32, "Natural Language Processing & Knowledge Representation — Academic Research Monograph")
-        page_str = f"Page {self._pageNumber} of {page_count}"
-        self.drawRightString(562, 32, page_str)
+        self.drawString(50, 32, "Natural Language Processing — Course Project Report")
+        self.drawRightString(562, 32, f"Page {self._pageNumber} of {page_count}")
         self.restoreState()
 
 
-def build_academic_monograph(output_path: Path):
-    """Generate the rigorous, comprehensive 12-page technical monograph."""
+def build_report(output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     doc = SimpleDocTemplate(
         str(output_path),
         pagesize=letter,
-        leftMargin=50,
-        rightMargin=50,
-        topMargin=50,
-        bottomMargin=50,
+        leftMargin=52,
+        rightMargin=52,
+        topMargin=52,
+        bottomMargin=52,
     )
 
-    # Academic Monochrome (Black & White / Grayscale) Tokens
-    c_primary = colors.HexColor("#000000")     # Pure Black for primary headings & table headers
-    c_secondary = colors.HexColor("#222222")   # Dark Charcoal for secondary headings
-    c_accent = colors.HexColor("#444444")      # Medium Dark Gray accent
-    c_dark = colors.HexColor("#000000")        # Pure Black text
-    c_body = colors.HexColor("#222222")        # Dark Charcoal body text
-    c_muted = colors.HexColor("#555555")       # Neutral medium gray for annotations
-    c_card_bg = colors.HexColor("#f4f4f4")     # Very light gray for alternating table rows
-    c_callout_bg = colors.HexColor("#f8f8f8")  # Neutral subtle light gray callout background
-    c_callout_border = colors.HexColor("#666666") # Medium gray callout border
-    c_warn_bg = colors.HexColor("#efefef")     # Subtle light gray for warning box
-    c_warn_border = colors.HexColor("#333333") # Dark gray border for warning box
-    c_border = colors.HexColor("#999999")      # Crisp gray border stroke
-    c_code_bg = colors.HexColor("#f2f2f2")     # Neutral code background
+    c_heading = colors.HexColor("#1a1a1a")
+    c_body = colors.HexColor("#222222")
+    c_muted = colors.HexColor("#555555")
+    c_border = colors.HexColor("#aaaaaa")
+    c_table_head = colors.HexColor("#2b2b2b")
+    c_row_alt = colors.HexColor("#f5f5f5")
+    c_code_bg = colors.HexColor("#f2f2f2")
+    c_callout_bg = colors.HexColor("#f7f7f7")
 
-    # Base Typography
     styles = getSampleStyleSheet()
 
     title_style = ParagraphStyle(
-        "MonographTitle",
-        parent=styles["Title"],
-        fontName="Helvetica-Bold",
-        fontSize=17,
-        leading=21,
-        textColor=c_primary,
-        alignment=0,
-        spaceAfter=3,
+        "Title", parent=styles["Title"], fontName="Helvetica-Bold",
+        fontSize=18, leading=22, textColor=c_heading, spaceAfter=4, alignment=0,
     )
-
-    sub_title_style = ParagraphStyle(
-        "MonographSubTitle",
-        parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=9,
-        leading=13,
-        textColor=c_secondary,
-        alignment=0,
-        spaceAfter=5,
+    subtitle_style = ParagraphStyle(
+        "Subtitle", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=10.5, leading=14, textColor=c_muted, spaceAfter=14,
     )
-
     meta_style = ParagraphStyle(
-        "MonographMeta",
-        parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=7.2,
-        leading=10,
-        textColor=c_muted,
-        spaceAfter=6,
+        "Meta", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=9, leading=13, textColor=c_muted, spaceAfter=2,
     )
-
-    h1_style = ParagraphStyle(
-        "Heading1_Acad",
-        parent=styles["Heading1"],
-        fontName="Helvetica-Bold",
-        fontSize=10.5,
-        leading=13.5,
-        textColor=c_primary,
-        spaceBefore=7,
-        spaceAfter=3,
-        keepWithNext=True,
+    h1 = ParagraphStyle(
+        "H1", parent=styles["Heading1"], fontName="Helvetica-Bold",
+        fontSize=14, leading=18, textColor=c_heading, spaceBefore=16, spaceAfter=8,
     )
-
-    h2_style = ParagraphStyle(
-        "Heading2_Acad",
-        parent=styles["Heading2"],
-        fontName="Helvetica-Bold",
-        fontSize=8.8,
-        leading=11.5,
-        textColor=c_secondary,
-        spaceBefore=5,
-        spaceAfter=2.5,
-        keepWithNext=True,
+    h2 = ParagraphStyle(
+        "H2", parent=styles["Heading2"], fontName="Helvetica-Bold",
+        fontSize=11.5, leading=15, textColor=c_heading, spaceBefore=12, spaceAfter=6,
     )
-
-    body_style = ParagraphStyle(
-        "Body_Acad",
-        parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=7.8,
-        leading=10.8,
-        textColor=c_body,
-        spaceAfter=3.5,
-        alignment=4,  # Justified
+    body = ParagraphStyle(
+        "Body", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=10, leading=14.5, textColor=c_body, spaceAfter=8, alignment=4,
     )
-
-    body_bold = ParagraphStyle(
-        "BodyBold_Acad",
-        parent=body_style,
-        fontName="Helvetica-Bold",
+    bullet = ParagraphStyle(
+        "Bullet", parent=body, leftIndent=14, bulletIndent=2, spaceAfter=4,
     )
-
-    bullet_style = ParagraphStyle(
-        "Bullet_Acad",
-        parent=body_style,
-        leftIndent=11,
-        firstLineIndent=-6,
-        spaceAfter=1.8,
-        alignment=0,
-    )
-
     code_style = ParagraphStyle(
-        "Code_Acad",
-        parent=styles["Normal"],
-        fontName="Courier",
-        fontSize=6.6,
-        leading=8.6,
-        textColor=colors.HexColor("#000000"),
-        backColor=c_code_bg,
-        borderPadding=3.5,
-        spaceAfter=3.5,
+        "Code", parent=styles["Normal"], fontName="Courier", fontSize=8,
+        leading=11.5, textColor=c_body, backColor=c_code_bg,
+        borderPadding=8, spaceBefore=4, spaceAfter=10,
+    )
+    caption_style = ParagraphStyle(
+        "Caption", parent=styles["Normal"], fontName="Helvetica-Oblique",
+        fontSize=8.5, leading=11, textColor=c_muted, spaceAfter=10,
+    )
+    table_cell = ParagraphStyle("TCell", parent=body, fontSize=8.5, leading=11.5, spaceAfter=0)
+    table_head_cell = ParagraphStyle(
+        "TCellHead", parent=table_cell, fontName="Helvetica-Bold", textColor=colors.white,
     )
 
-    math_block = ParagraphStyle(
-        "MathBlock_Acad",
-        parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=7.4,
-        leading=10.2,
-        textColor=colors.HexColor("#000000"),
-        backColor=colors.HexColor("#f6f6f6"),
-        borderPadding=4,
-        spaceAfter=3.5,
-    )
+    def P(text, style=body):
+        return Paragraph(text, style)
 
-    callout_text = ParagraphStyle(
-        "Callout_Text",
-        parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=7.4,
-        leading=10,
-        textColor=colors.HexColor("#222222"),
-    )
+    def rule():
+        return HRFlowable(width="100%", thickness=0.6, color=c_border, spaceBefore=2, spaceAfter=12)
 
-    table_cell = ParagraphStyle(
-        "TableCell_Acad",
-        parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=6.6,
-        leading=8.6,
-        textColor=c_body,
-    )
+    def code(text):
+        safe = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        safe = safe.replace("\n", "<br/>").replace(" ", "&nbsp;")
+        return Paragraph(safe, code_style)
 
-    table_header = ParagraphStyle(
-        "TableHeader_Acad",
-        parent=styles["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=7.0,
-        leading=9.0,
-        textColor=colors.white,
-    )
+    def styled_table(data, col_widths, header=True):
+        t = Table(data, colWidths=col_widths, repeatRows=1 if header else 0)
+        style_cmds = [
+            ("GRID", (0, 0), (-1, -1), 0.5, c_border),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]
+        if header:
+            style_cmds += [
+                ("BACKGROUND", (0, 0), (-1, 0), c_table_head),
+            ]
+        for r in range(1 if header else 0, len(data)):
+            if (r - (1 if header else 0)) % 2 == 1:
+                style_cmds.append(("BACKGROUND", (0, r), (-1, r), c_row_alt))
+        t.setStyle(TableStyle(style_cmds))
+        return t
 
-    table_header_style = table_header
-    table_cell_style = table_cell
-
-    bib_style = ParagraphStyle(
-        "Bib_Acad",
-        parent=body_style,
-        fontSize=7.0,
-        leading=9.5,
-        leftIndent=16,
-        firstLineIndent=-16,
-        spaceAfter=3,
-        alignment=0,
-    )
-
-    story = []
-
-    # Helper function for callout boxes
-    def make_callout(title_str, text_str, is_warn=False):
-        bg = c_warn_bg if is_warn else c_callout_bg
-        bd = c_warn_border if is_warn else c_callout_border
-        p_title = Paragraph(f"<b>{title_str}</b>", ParagraphStyle(
-            "C_Title", parent=callout_text, fontName="Helvetica-Bold",
-            textColor=colors.HexColor("#000000")
-        ))
-        p_body = Paragraph(text_str, callout_text)
-        t = Table([[p_title], [p_body]], colWidths=[512])
+    def callout(text):
+        t = Table([[P(text, body)]], colWidths=[468])
         t.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), bg),
-            ("BOX", (0, 0), (-1, -1), 0.75, bd),
-            ("TOPPADDING", (0, 0), (-1, -1), 2.5),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
-            ("LEFTPADDING", (0, 0), (-1, -1), 5),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ("BACKGROUND", (0, 0), (-1, -1), c_callout_bg),
+            ("BOX", (0, 0), (-1, -1), 0.6, c_border),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
         ]))
         return t
 
-    # Retrieve graph entities
-    graph = NeapolitanArtGraph()
-    venues = graph.get_all_locations()
-    artists = graph.get_all_artists()
+    story = []
 
-    # =========================================================================
-    # PAGE 1: TITLE, ABSTRACT, KEYWORDS, INTRODUCTION & RESEARCH OBJECTIVES
-    # =========================================================================
-    story.append(Paragraph("Neapolitan Artistic Heritage Multimodal Dialogue System", title_style))
-    story.append(Paragraph(
-        "A Graph-Grounded Conversational Agent Integrating DBpedia SPARQL Semantic Harvesting, "
-        "Dual Graph Persistence, Real-Time Contradiction Reasoning, and Phonetically Robust Speech Synthesis",
-        sub_title_style,
+    # ---------- Title ----------
+    story.append(P("Neapolitan Artistic Heritage Dialogue System", title_style))
+    story.append(P(
+        "A speech-enabled chatbot for Caravaggio and Battistello Caracciolo's works in Naples, "
+        "grounded in a DBpedia-derived knowledge graph with inconsistency detection",
+        subtitle_style,
+    ))
+    story.append(rule())
+    story.append(P("<b>Course:</b> Natural Language Processing (U3539) — Prof. Francesco Cutugno", meta_style))
+    story.append(P("<b>Student:</b> Mahdi Miri (D03000089) — M.Sc. Data Science", meta_style))
+    story.append(P("<b>Institution:</b> University of Naples Federico II, DIETI", meta_style))
+    story.append(Spacer(1, 14))
+
+    # ---------- 1. Introduction ----------
+    story.append(P("1. Introduction", h1))
+    story.append(P(
+        "This report documents what I built to satisfy my Natural Language Processing course "
+        "requirement: a speech chatbot, with voice input and text-to-speech output, that answers "
+        "questions about the works of Caravaggio and Battistello Caracciolo that can be visited in "
+        "Naples. The brief was specific: the factual knowledge behind the chatbot has to come from "
+        "SPARQL queries against DBpedia, and the resulting data has to be loaded into a Neo4j graph "
+        "database. On top of that, the system has to detect inconsistencies in what the user says, and "
+        "keep track of the conversation across multiple turns rather than treating every question in "
+        "isolation.",
+        body,
+    ))
+    story.append(P(
+        "I kept the scope deliberately narrow: two painters, eight paintings, five venues, all within "
+        "the city of Naples. That narrowness was the point. A general-purpose language model answering "
+        "questions about art history will happily make things up — assign a painting to the wrong "
+        "artist, claim a Roman painting is on display in Naples, or invent a museum address. For a "
+        "cultural-heritage guide that visitors might actually rely on, I consider that kind of "
+        "fabrication a real problem. Rather than fighting hallucination after the fact, I tried to avoid "
+        "it by construction: every factual claim the chatbot makes is looked up in a graph I built from "
+        "verified DBpedia data, and every claim the user makes is checked against that same graph "
+        "before the system responds.",
+        body,
+    ))
+    story.append(P(
+        "In the rest of this report I walk through what I built: the data pipeline, the graph database, "
+        "the dialogue manager, the inconsistency detector, the speech components, and finally my "
+        "evaluation results, including an honest look at where the approach falls short.",
+        body,
     ))
 
-    meta_block = (
-        "<b>Academic Institution:</b> University of Naples Federico II | Department of Electrical Engineering & Information Technology (DIETI)<br/>"
-        "<b>Course:</b> Natural Language Processing & Knowledge Representation | Master of Science in Computer Science & Data Science<br/>"
-        "<b>Curatorial Domain:</b> Baroque Heritage of Caravaggio and Battistello Caracciolo in Naples | <b>Date:</b> Academic Year 2024–2025"
-    )
-    story.append(Paragraph(meta_block, meta_style))
-    story.append(HRFlowable(width="100%", thickness=1.2, color=c_primary, spaceBefore=0, spaceAfter=6))
-
-    story.append(Paragraph("Abstract", h1_style))
-    story.append(Paragraph(
-        "Deploying conversational artificial intelligence within digital cultural heritage informatics demands deterministic factual reliability, "
-        "strict geographical domain fidelity, and resilient acoustic parsing of natural human speech. Standard generative large language models "
-        "frequently suffer from unconstrained hallucinations, anachronistic attributions, and geographical hallucinations when queried "
-        "about localized art historical collections. In this research monograph, we present the design, semantic formalization, and "
-        "empirical evaluation of an end-to-end multimodal dialogue architecture dedicated to the Neapolitan artistic heritage. Centered on "
-        "the foundational Baroque epoch in Naples (1606–1635), the system models the masterworks of Michelangelo Merisi da Caravaggio and "
-        "his foremost Neapolitan adherent, Giovanni Battista Caracciolo (Battistello), preserved across five urban institutions in Naples. "
-        "The architecture unifies live semantic harvesting from the DBpedia SPARQL endpoint, dual graph database persistence across Neo4j 5.x "
-        "and an embedded zero-setup SQLite store (40 nodes, 46 edges), multi-turn discourse state tracking with coreference resolution, "
-        "a five-dimensional inconsistency detection engine, and an acoustic pipeline powered by OpenAI Whisper 'small' (244M parameters) "
-        "and Microsoft Edge Neural TTS. Rather than returning raw database tuples, the generation engine delivers soft, fluent curatorial "
-        "prose optimized for audio delivery. Evaluated across an automated 150-test comprehensive stress benchmark, the system demonstrates "
-        "100.00% precision, 100.00% recall, 100.00% classification accuracy, and an average dialogue processing latency of 1.97 ms.",
-        body_style,
+    # ---------- 2. Domain ----------
+    story.append(P("2. Domain: Caravaggio and Battistello in Naples", h1))
+    story.append(P(
+        "Caravaggio spent two periods in Naples (1606–1607 and 1609–1610), fleeing Rome after a fatal "
+        "duel, and his time there left a lasting mark on local painting. Battistello Caracciolo "
+        "(1578–1635) was the most prominent Neapolitan painter to pick up Caravaggio's style of harsh "
+        "lighting and unidealized figures, and he was the obvious second subject for a project focused "
+        "on this period. The catalog I put together covers three Caravaggio works and five Battistello "
+        "works, all physically on display in Naples today:",
+        body,
     ))
 
-    story.append(Paragraph(
-        "<b>Keywords:</b> Multimodal Dialogue Systems, Knowledge Graphs, DBpedia SPARQL Harvesting, Cultural Heritage Informatics, "
-        "Inconsistency Detection, Dialogue State Tracking, Speech Recognition (ASR), Neural Speech Synthesis (TTS), Neapolitan Baroque.",
-        ParagraphStyle("KW", parent=body_style, fontName="Helvetica-Oblique", spaceAfter=5)
-    ))
-
-    story.append(Paragraph("1. Introduction & Research Motivation", h1_style))
-    story.append(Paragraph(
-        "Interactive virtual museum guides and cultural heritage dialogue systems serve as vital educational gateways, enabling museum "
-        "visitors, students, and scholars to interrogate historical collections conversationally. However, developing conversational "
-        "interfaces for urban-scale art collections presents substantial challenges at the intersection of natural language processing, "
-        "semantic web engineering, and speech technology:",
-        body_style,
-    ))
-
-    intro_points = [
-        ("Factual Integrity vs. Generative Hallucination", "Off-the-shelf neural language models frequently fabricate artist attributions, invent non-existent collection provenance, or misplace famous works into wrong museums. In scholarly cultural heritage, every factual assertion must be deterministically grounded in authoritative linked data."),
-        ("Geographical Delimitation & Spatial Containment", "Visitors physically touring Naples require information strictly bounded to what can be inspected in situ within the city. Queries regarding Caravaggio masterworks in Rome (San Luigi dei Francesi), Florence (Uffizi), or Paris (Louvre) must be politely redirected, not falsely claimed as local exhibits."),
-        ("Acoustic & Multilingual Robustness in Natural Speech", "Visitors to Naples originate from diverse linguistic backgrounds, speaking with varying accents, mispronouncing Italian proper names ('Battistello', 'Pio Monte della Misericordia'), or introducing acoustic preposition distortions ('Seven Works for Mercy' instead of 'of Mercy'). ASR systems must exhibit phonological tolerance without losing semantic alignment."),
-        ("Humanized Curatorial Delivery", "Early graph querying interfaces dumped rigid key-value pairs (e.g. 'Artist: Caravaggio | Dimensions: 390x260'). Such outputs sound mechanical and unpleasant when spoken aloud by text-to-speech synthesizers. An effective virtual curator must articulate fluid, elegant, and scholarly prose."),
+    catalog_header = [P("Title", table_head_cell), P("Artist", table_head_cell), P("Year", table_head_cell),
+                       P("Venue", table_head_cell)]
+    catalog_rows = [
+        catalog_header,
+        [P("The Seven Works of Mercy", table_cell), P("Caravaggio", table_cell), P("1607", table_cell),
+         P("Pio Monte della Misericordia", table_cell)],
+        [P("The Flagellation of Christ", table_cell), P("Caravaggio", table_cell), P("1607", table_cell),
+         P("Museo Nazionale di Capodimonte", table_cell)],
+        [P("The Martyrdom of Saint Ursula", table_cell), P("Caravaggio", table_cell), P("1610", table_cell),
+         P("Gallerie d'Italia, Palazzo Zevallos", table_cell)],
+        [P("The Liberation of Saint Peter", table_cell), P("Battistello Caracciolo", table_cell), P("1615", table_cell),
+         P("Pio Monte della Misericordia", table_cell)],
+        [P("The Washing of the Feet", table_cell), P("Battistello Caracciolo", table_cell), P("1622", table_cell),
+         P("Certosa di San Martino", table_cell)],
+        [P("Christ at the Column", table_cell), P("Battistello Caracciolo", table_cell), P("1625", table_cell),
+         P("Museo Nazionale di Capodimonte", table_cell)],
+        [P("Trinitas Terrestris", table_cell), P("Battistello Caracciolo", table_cell), P("1617", table_cell),
+         P("Chiesa della Pietà dei Turchini", table_cell)],
+        [P("Frescoes of the Chapel of the Assunta", table_cell), P("Battistello Caracciolo", table_cell), P("1631", table_cell),
+         P("Certosa di San Martino", table_cell)],
     ]
-    for p_title, p_desc in intro_points:
-        story.append(Paragraph(f"• <b>{p_title}:</b> {p_desc}", bullet_style))
+    story.append(styled_table(catalog_rows, [170, 120, 45, 133]))
+    story.append(P(
+        "Two venues — Pio Monte della Misericordia and Museo Nazionale di Capodimonte — each hold works "
+        "by both painters, which I found useful for testing: it is exactly the kind of overlap where a "
+        "careless system might attribute the wrong work to the wrong artist at the right building, or "
+        "vice versa. To test the out-of-scope and city-mismatch detectors honestly, I also kept a short "
+        "list of well-known Caravaggio paintings that are <i>not</i> in Naples — Judith Beheading "
+        "Holofernes and The Calling of Saint Matthew in Rome, Bacchus in Florence — so the system has "
+        "something concrete to correct against when a user assumes they can see those works locally.",
+        body,
+    ))
 
-    story.append(Spacer(1, 3))
-    story.append(Paragraph("1.1 Core Research Objectives & Architectural Contributions", h2_style))
-    story.append(Paragraph(
-        "To address these challenges, this project establishes a five-fold technical pipeline: (1) automated semantic harvesting and RDF "
-        "enrichment from DBpedia via SPARQL; (2) dual graph persistence ensuring 100% fail-safe operation; (3) multi-turn discourse memory "
-        "with anaphora resolution; (4) a five-class contradiction detector guarding against factual errors; and (5) soft conversational NLG "
-        "paired with high-fidelity neural speech synthesis.",
-        body_style,
+    # ---------- 3. Architecture overview ----------
+    story.append(P("3. System Overview", h1))
+    story.append(P(
+        "I split the system into four layers, each with a single, fairly narrow job:",
+        body,
+    ))
+    story.append(P("• <b>Data acquisition</b> — a SPARQL client that queries DBpedia for the two artists, their works, and the venues, and caches the results locally.", bullet))
+    story.append(P("• <b>Knowledge graph</b> — a graph store, built on Neo4j with an embedded SQLite fallback, holding the catalog as (:Artist)-[:PAINTED]->(:Artwork)-[:LOCATED_AT]->(:Location)-[:IN_CITY]->(:City).", bullet))
+    story.append(P("• <b>Dialogue engine</b> — entity extraction, coreference resolution, an inconsistency checker, and a response generator, all working against the graph.", bullet))
+    story.append(P("• <b>Speech layer</b> — Whisper for transcription on the way in, Edge-TTS (with an offline pyttsx3 fallback) for synthesis on the way out.", bullet))
+    story.append(P(
+        "I tied these together with a Streamlit app that presents a single-page interface: a microphone "
+        "input, a text box, a running transcript, and an expandable view of the underlying graph so that "
+        "answers aren't just taken on faith. I also exposed the same pipeline through a terminal CLI for "
+        "quicker testing without the browser.",
+        body,
+    ))
+    story.append(P(
+        "Figure 1 lays out the pipeline I actually built, module by module, plus the one-time setup step "
+        "that populates the graph before any conversation happens. The two dashed branches mark where "
+        "behavior forks: a text turn skips speech recognition, and a turn where the inconsistency check "
+        "fires skips the knowledge-graph lookup and goes straight to a corrective reply instead of a "
+        "normal answer.",
+        body,
     ))
 
     story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 2: ART HISTORICAL DOMAIN & URBAN TOPOGRAPHY (1606-1635)
-    # =========================================================================
-    story.append(Paragraph("2. Art Historical Domain: The Neapolitan Baroque (1606–1635)", h1_style))
-    story.append(Paragraph(
-        "The spatial and historical scope of this system is intentionally delimited to the urban municipality of Naples, Italy, focusing "
-        "on the revolutionary period of early Italian Baroque painting inaugurated by Michelangelo Merisi da Caravaggio and championed by "
-        "his foremost native follower, Giovanni Battista Caracciolo (known as Battistello). This historical epoch represents one of the most "
-        "vibrant, transformative chapters in Mediterranean art history.",
-        body_style,
-    ))
-
-    story.append(Paragraph("2.1 Caravaggio's Transformative Stays in Naples", h2_style))
-    story.append(Paragraph(
-        "In May 1606, Caravaggio fled Rome following the fatal brawl with Ranuccio Tomassoni, taking refuge in Spanish-ruled Naples under the "
-        "protection of the Colonna family. His arrival sent shockwaves through the local artistic environment, which had been dominated by "
-        "mannerist traditions represented by Fabrizio Santafede and Belisario Corenzio. In Naples, Caravaggio experienced two intensely "
-        "productive creative periods: his first Neapolitan stay (October 1606 – June 1607) and his second stay (autumn 1609 – July 1610), "
-        "shortly before his untimely death in Porto Ercole. During these stays, Caravaggio radicalized his artistic style. He abandoned the "
-        "polished surfaces of his Roman period in favor of raw, unvarnished naturalism, monumental figures, and violent tenebrist lighting "
-        "where figures emerge from deep atmospheric darkness. Three monumental canvases from these stays survive in Naples today: "
-        "<i>The Seven Works of Mercy</i>, <i>The Flagellation of Christ</i>, and his tragic final painting, <i>The Martyrdom of Saint Ursula</i>.",
-        body_style,
-    ))
-
-    story.append(Paragraph("2.2 Battistello Caracciolo: Pioneer of Neapolitan Caravaggism", h2_style))
-    story.append(Paragraph(
-        "Giovanni Battista Caracciolo (1578–1635), commonly called Battistello, was the first Neapolitan painter to fully absorb Caravaggio's "
-        "revolutionary aesthetic. Unlike later foreign followers such as Jusepe de Ribera, Battistello experienced Caravaggio's presence in "
-        "Naples firsthand as a young master in his late twenties. Battistello adopted Caravaggio's dramatic chiaroscuro and unsparing realism "
-        "while integrating the intellectual rigor of central Italian and Tuscan academic draftsmanship (disegno), which he deepened during "
-        "study journeys to Rome and Florence between 1614 and 1618. Battistello's mature output in Naples represents the pinnacle of indigenous "
-        "Neapolitan Caravaggism, mastering both monumental oil on canvas and large-scale fresco cycles. The system catalogs five of his "
-        "masterworks across Naples: <i>The Liberation of Saint Peter</i>, <i>The Washing of the Feet</i>, <i>Christ at the Column</i>, "
-        "<i>Trinitas Terrestris</i>, and the monumental <i>Frescoes of the Chapel of the Assunta</i>.",
-        body_style,
-    ))
-
-    story.append(Paragraph("2.3 Urban Topography & The Five Preservation Sanctuaries", h2_style))
-    story.append(Paragraph(
-        "A critical curatorial principle enforced by the system is physical accessibility within the urban fabric of Naples. "
-        "The system explicitly distinguishes between artworks on permanent display in accessible cultural sites and works in inaccessible "
-        "private collections, lost historical canvases, or works preserved in other Italian and European capitals. The spatial graph maps "
-        "each work to its exact architectural setting across five historic institutions:",
-        body_style,
-    ))
-
-    spatial_desc = [
-        ("Pio Monte della Misericordia (Via dei Tribunali)", "Founded in 1602 as a charitable congregation, this historic octagonal church houses Caravaggio's 'The Seven Works of Mercy' directly above its high altar, while the side chapels feature Battistello's responding masterpiece, 'The Liberation of Saint Peter' (1615)."),
-        ("Museo Nazionale di Capodimonte (Via Miano)", "The grand palace of the Bourbon dynasty reigning above Naples preserves Caravaggio's colossal 'The Flagellation of Christ' (transferred from the Church of San Domenico Maggiore) and Battistello's intimate tenebrist canvas 'Christ at the Column'."),
-        ("Gallerie d'Italia — Palazzo Zevallos Stigliano (Via Toledo)", "The monumental Baroque palace along Via Toledo houses Caravaggio's final signed masterwork, 'The Martyrdom of Saint Ursula', completed in May 1610 just weeks prior to his death."),
-        ("Certosa e Museo di San Martino (Vomero Hill)", "Perched on the Vomero overlooking the Bay of Naples, the former Carthusian monastery contains Battistello's monumental canvas 'The Washing of the Feet' (1622) in the church choir and his decorative Marian cycle in the Chapel of the Assunta (1631)."),
-        ("Chiesa della Pietà dei Turchini (Via Medina)", "Located in the historic center, this historic church houses Battistello's early devotional canvas 'Trinitas Terrestris with Saints' (1617), exemplifying his mature synthesis of sacred iconography and Neapolitan street naturalism."),
-    ]
-    for s_title, s_text in spatial_desc:
-        story.append(Paragraph(f"• <b>{s_title}:</b> {s_text}", bullet_style))
-
-    story.append(Spacer(1, 3))
-    story.append(Paragraph("2.4 Spatial Containment & Museum Visitor Orientation", h2_style))
-    story.append(Paragraph(
-        "Because cultural tourists frequently conflate famous artworks by Caravaggio located in Rome (such as <i>The Calling of Saint Matthew</i> "
-        "in the Contarelli Chapel) or Florence (such as <i>Bacchus</i> in the Uffizi) with his Neapolitan corpus, the dialogue system "
-        "enforces an active municipal boundary: it informs users of the true location of external works and immediately pivots to describe "
-        "masterworks visitable locally in Naples.",
-        body_style,
-    ))
-
-    story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 3: AUTHORITATIVE CULTURAL HERITAGE MASTERWORKS CATALOG
-    # =========================================================================
-    story.append(Paragraph("2.5 Authoritative Cultural Heritage Masterpieces Catalog", h1_style))
-    story.append(Paragraph(
-        "The following table documents the authoritative ground-truth catalog implemented in <code>curated_dataset.py</code> and "
-        "enriched via DBpedia SPARQL retrieval. Table 1 enumerates the 8 masterworks with their physical dimensions, medium, year of execution, "
-        "preservation location, and curatorial summaries.",
-        body_style,
-    ))
-
-    story.append(Paragraph("Table 1: Masterpieces by Caravaggio and Battistello Caracciolo in Naples", h2_style))
-
-    art_full_headers = [
-        Paragraph("Title & Italian Name", table_header_style),
-        Paragraph("Artist & Period", table_header_style),
-        Paragraph("Year", table_header_style),
-        Paragraph("Medium & Dimensions", table_header_style),
-        Paragraph("Preservation Venue & Curatorial Summary", table_header_style),
-    ]
-    art_full_rows = [art_full_headers]
-    for a in NEAPOLITAN_ARTWORKS:
-        art_full_rows.append([
-            Paragraph(f"<b>{a['title']}</b><br/><i>{a.get('italian_title', '')}</i>", table_cell),
-            Paragraph(f"<b>{a['artist']}</b><br/>{a.get('subjects', ['Baroque'])[0]}", table_cell),
-            Paragraph(str(a["year"]), table_cell),
-            Paragraph(f"{a['medium']}<br/>{a['dimensions']}", table_cell),
-            Paragraph(f"<b>{a['location']}</b> ({a.get('address', 'Naples')})<br/>{a.get('description', '')}", table_cell),
-        ])
-
-    t_artworks = Table(art_full_rows, colWidths=[106, 82, 33, 95, 196])
-    t_artworks.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), c_primary),
-        ("ALIGN", (2, 0), (2, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("GRID", (0, 0), (-1, -1), 0.5, c_border),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.2),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, c_card_bg]),
-    ]))
-    story.append(t_artworks)
-    story.append(Spacer(1, 4))
-
-    story.append(Paragraph("2.6 Curatorial Analysis of Masterwork Chronology and Iconography", h2_style))
-    story.append(Paragraph(
-        "Chronologically, the catalog spans 1607 to 1631, tracing the arc of early Neapolitan Caravaggism from its revolutionary inception "
-        "to its monumental institutionalization. The earlier canvases—Caravaggio's <i>Seven Works of Mercy</i> and <i>Flagellation</i> (both 1607)—"
-        "established a new standard for somatic realism, where sacred protagonists possess weathered skin, calloused hands, and visceral muscular "
-        "strain. Battistello's <i>Liberation of Saint Peter</i> (1615) explicitly responds to Caravaggio's church high altar with dramatic "
-        "diagonal lighting and a powerfully rendered sleeping jailer. By 1622, in <i>The Washing of the Feet</i>, Battistello had synthesized "
-        "this tenebrist realism with noble Venetian color accents and Tuscan spatial harmony, creating a monumental liturgical composition "
-        "that decorates the choir of the Certosa di San Martino.",
-        body_style,
-    ))
-
-    story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 4: URBAN INSTITUTIONS & LINKED OPEN DATA HARVESTING
-    # =========================================================================
-    story.append(Paragraph("2.7 Cultural Preservation Institutions in Naples", h1_style))
-    story.append(Paragraph(
-        "The urban deployment of the dialogue system centers on five historic cultural venues. Table 2 details each preservation site, "
-        "its municipal address, precise geographical coordinates, cataloged artwork holdings, and institutional history.",
-        body_style,
-    ))
-
-    story.append(Paragraph("Table 2: Cultural Preservation Institutions & Museum Sanctuaries in Naples", h2_style))
-    venue_full_headers = [
-        Paragraph("Venue Institution", table_header_style),
-        Paragraph("Municipal Address & Coordinates", table_header_style),
-        Paragraph("Cataloged Artworks", table_header_style),
-        Paragraph("Institutional & Architectural Overview", table_header_style),
-    ]
-    venue_full_rows = [venue_full_headers]
-    for v in venues:
-        arts_list = "<br/>".join(f"• {item}" for item in v.get("artworks", []))
-        venue_full_rows.append([
-            Paragraph(f"<b>{v['name']}</b>", table_cell),
-            Paragraph(f"{v.get('address', 'Naples')}<br/><i>Lat: {v.get('latitude', '40.85')} N, Lon: {v.get('longitude', '14.25')} E</i>", table_cell),
-            Paragraph(arts_list, table_cell),
-            Paragraph(v.get("description", ""), table_cell),
-        ])
-
-    t_venues = Table(venue_full_rows, colWidths=[118, 118, 126, 150])
-    t_venues.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), c_primary),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("GRID", (0, 0), (-1, -1), 0.5, c_border),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.2),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, c_card_bg]),
-    ]))
-    story.append(t_venues)
-    story.append(Spacer(1, 4))
-
-    # SECTION 3 BEGINS ON PAGE 4 - FLOWS NATURALLY
-    story.append(Paragraph("3. Linked Open Data & Semantic Web Ingestion", h1_style))
-    story.append(Paragraph(
-        "The dialogue system grounds its reasoning strictly in an RDF Knowledge Graph harvested from the open linked data web. "
-        "By dynamically querying the DBpedia SPARQL endpoint and enforcing schema constraints, the architecture completely eliminates "
-        "uncontrolled generative hallucinations while providing verifiable web provenance for all assertions.",
-        body_style,
-    ))
-
-    story.append(Paragraph("3.1 Dynamic DBpedia SPARQL Data Pipeline", h2_style))
-    story.append(Paragraph(
-        "The semantic ingestion engine is implemented in <code>sparql_client.py</code> using the <code>SPARQLWrapper</code> library. "
-        "During corpus construction, the pipeline issues structured SPARQL 1.1 queries against the official DBpedia endpoint "
-        "(<code>https://dbpedia.org/sparql</code>). The queries extract ontological properties for Caravaggio and Battistello Caracciolo, "
-        "including biographical dates (<code>dbo:birthDate</code>, <code>dbo:deathDate</code>), birthplaces (<code>dbo:birthPlace</code>), "
-        "and curatorial abstracts (<code>dbo:abstract</code> filtered to English language tags). For artworks with dedicated DBpedia "
-        "entities (such as <i>The Seven Works of Mercy</i> and <i>The Flagellation</i>), the harvester retrieves dimensions, image URIs, "
-        "and thematic categories. The harvested data is persisted to an offline snapshot cache (<code>data/cache/neapolitan_corpus_cache.json</code>), "
-        "guaranteeing complete offline reproducibility without dependency on external network uptime.",
-        body_style,
-    ))
-
-    sparql_example = (
-        "<b>SPARQL Query Specification for Artist Ontological Metadata:</b><br/>"
-        "PREFIX dbo: &lt;http://dbpedia.org/ontology/&gt;<br/>"
-        "PREFIX rdfs: &lt;http://www.w3.org/2000/01/rdf-schema#&gt;<br/>"
-        "SELECT ?label ?abstract ?birthDate ?deathDate ?birthPlace WHERE {<br/>"
-        "&nbsp;&nbsp;&lt;http://dbpedia.org/resource/Caravaggio&gt; rdfs:label ?label .<br/>"
-        "&nbsp;&nbsp;OPTIONAL { &lt;http://dbpedia.org/resource/Caravaggio&gt; dbo:abstract ?abstract . FILTER(lang(?abstract) = 'en') }<br/>"
-        "&nbsp;&nbsp;OPTIONAL { &lt;http://dbpedia.org/resource/Caravaggio&gt; dbo:birthDate ?birthDate }<br/>"
-        "&nbsp;&nbsp;OPTIONAL { &lt;http://dbpedia.org/resource/Caravaggio&gt; dbo:deathDate ?deathDate }<br/>"
-        "&nbsp;&nbsp;FILTER (lang(?label) = 'en')<br/>"
-        "} LIMIT 1"
-    )
-    story.append(Paragraph(sparql_example, code_style))
-
-    story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 5: GRAPH ONTOLOGY & DUAL GRAPH PERSISTENCE
-    # =========================================================================
-    story.append(Paragraph("3.2 Formal Ontology Specification & Graph Topology", h1_style))
-    story.append(Paragraph(
-        "The conceptual domain is formalized as a directed property graph <i>G</i> = (<i>V</i>, <i>E</i>, <i>T</i><sub>v</sub>, <i>T</i><sub>e</sub>, <i>P</i>), "
-        "where <i>V</i> denotes the set of typed entity vertices, <i>E</i> denotes directed relation edges, <i>T</i><sub>v</sub> and "
-        "<i>T</i><sub>e</sub> are node and edge typing functions, and <i>P</i> maps entities to attribute-value property dictionaries.",
-        body_style,
-    ))
-
-    schema_box = (
-        "<b>Ontology Classes (Node Labels <i>V</i>):</b><br/>"
-        "• <b>Artist:</b> Represents the master painter. Attributes: <code>name</code> (unique), <code>uri</code>, <code>movement</code>, "
-        "<code>birth_year</code>, <code>death_year</code>, <code>neapolitan_periods</code>, <code>significance</code>, <code>dbpedia_abstract</code>.<br/>"
-        "• <b>Artwork:</b> Physical canvas or fresco. Attributes: <code>title</code> (unique), <code>italian_title</code>, "
-        "<code>year</code>, <code>medium</code>, <code>dimensions</code>, <code>description</code>, <code>uri</code>, <code>source_url</code>, <code>dbpedia_page</code>.<br/>"
-        "• <b>Location:</b> Museum or church. Attributes: <code>name</code> (unique), <code>address</code>, "
-        "<code>description</code>, <code>latitude</code>, <code>longitude</code>, <code>source_url</code>, <code>dbpedia_page</code>.<br/>"
-        "• <b>City:</b> Spatial anchor. Attributes: <code>name: 'Naples'</code>, <code>country: 'Italy'</code>, <code>uri</code>.<br/>"
-        "• <b>Subject:</b> Thematic iconographical concepts. Attributes: <code>name</code> (unique).<br/><br/>"
-        "<b>Relation Predicates (Edges <i>E</i>):</b><br/>"
-        "• <code>(:Artist)-[:PAINTED]->(:Artwork)</code> — Creative authorship.<br/>"
-        "• <code>(:Artwork)-[:LOCATED_AT]->(:Location)</code> — Permanent spatial housing in Naples.<br/>"
-        "• <code>(:Location)-[:IN_CITY]->(:City)</code> — Municipal containment within Naples.<br/>"
-        "• <code>(:Artwork)-[:DEPICTS]->(:Subject)</code> — Iconographical and thematic representation."
-    )
-    story.append(Paragraph(schema_box, math_block))
-
-    story.append(Paragraph(
-        "<b>Graph Topology Audit:</b> A formal traversal audit confirms that the graph consists of exactly <b>40 vertices</b> "
-        "(2 Artists, 8 Artworks, 5 Locations, 1 City, 24 Subjects) and <b>46 directed edges</b> (8 PAINTED, 8 LOCATED_AT, 5 IN_CITY, "
-        "25 DEPICTS). Zero orphaned or disconnected nodes exist: every Artwork has exactly one incoming PAINTED edge and one outgoing "
-        "LOCATED_AT edge; every Location connects to City (Naples); and all node properties have been audited as 100% complete.",
-        body_style,
-    ))
-
-    story.append(Paragraph("4. Dual Graph Persistence Architecture", h1_style))
-    story.append(Paragraph(
-        "To satisfy the rigorous stability requirements of cultural institutions where containerized daemon processes might be restricted, "
-        "the architecture introduces a dual-persistence storage model. The system operates seamlessly over production Neo4j Cypher engines "
-        "or embedded SQLite relational graph stores without modifying dialogue management logic.",
-        body_style,
-    ))
-
-    story.append(Paragraph("4.1 Neo4j Graph Store (Primary Cypher Engine)", h2_style))
-    story.append(Paragraph(
-        "When a Neo4j daemon is available (configured via Docker on ports 7474 and 7687), the system activates <code>Neo4jGraphStore</code>. "
-        "Prior to data population, the engine initializes schema uniqueness constraints to guarantee referential integrity:",
-        body_style,
-    ))
-
-    cypher_constraints = (
-        "CREATE CONSTRAINT artwork_uri_unique IF NOT EXISTS FOR (a:Artwork) REQUIRE a.uri IS UNIQUE;<br/>"
-        "CREATE CONSTRAINT artist_name_unique IF NOT EXISTS FOR (p:Artist) REQUIRE p.name IS UNIQUE;<br/>"
-        "CREATE CONSTRAINT location_name_unique IF NOT EXISTS FOR (l:Location) REQUIRE l.name IS UNIQUE;<br/>"
-        "CREATE CONSTRAINT city_name_unique IF NOT EXISTS FOR (c:City) REQUIRE c.name IS UNIQUE;"
-    )
-    story.append(Paragraph(cypher_constraints, code_style))
-
-    story.append(Paragraph("4.2 Embedded SQLite Graph Store (Zero-Dependency Engine)", h2_style))
-    story.append(Paragraph(
-        "To ensure high availability in constrained environments, <code>LocalGraphStore</code> implements an embedded graph engine using "
-        "SQLite 3. The relational schema decomposes graph semantics into an indexed two-table architecture (<code>nodes</code> and <code>edges</code>) "
-        "with JSON properties and B-tree indexing on label, source_id, target_id, and relation.",
-        body_style,
-    ))
-
-    # Dual backend comparison table
-    dual_headers = [
-        Paragraph("Storage Engine Feature", table_header_style),
-        Paragraph("Neo4j 5.x Graph Store (Primary)", table_header_style),
-        Paragraph("SQLite 3 Graph Store (Embedded Fallback)", table_header_style),
-    ]
-    dual_rows = [dual_headers]
-    dual_data = [
-        ("Deployment Model", "Docker Container (Ports 7474, 7687)", "Zero-setup embedded file (data/neapolitan_art_graph.db)"),
-        ("Query Language", "Declarative OpenCypher (MATCH ... RETURN)", "Indexed SQL joins (JOIN edges ON source_id = id)"),
-        ("Constraint Checking", "Native DBMS uniqueness constraints", "Table PRIMARY KEY & Foreign Key constraints"),
-        ("Graph Topology", "40 nodes, 46 relationships", "40 nodes, 46 edges (identical synchronization)"),
-        ("Query Latency", "1.8 ms to 2.5 ms per traversal", "0.8 ms to 1.4 ms per indexed SQL join"),
-        ("External Dependencies", "Requires Java/Docker daemon", "Standard Python library (sqlite3) — Zero dependencies"),
-    ]
-    for feat, n4j, sql in dual_data:
-        dual_rows.append([
-            Paragraph(f"<b>{feat}</b>", table_cell),
-            Paragraph(n4j, table_cell),
-            Paragraph(sql, table_cell),
-        ])
-
-    t_dual = Table(dual_rows, colWidths=[130, 190, 192])
-    t_dual.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), c_primary),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("GRID", (0, 0), (-1, -1), 0.5, c_border),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.2),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, c_card_bg]),
-    ]))
-    story.append(t_dual)
-
-    story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 6: ACOUSTIC ROBUSTNESS & SPEECH PROCESSING (ASR)
-    # =========================================================================
-    story.append(Paragraph("5. Acoustic Robustness & Multimodal Speech Processing", h1_style))
-    story.append(Paragraph(
-        "Enabling natural voice interaction in physical gallery environments requires handling acoustic reverberation, microphone "
-        "gain variance, non-native English accents, and proper noun pronunciation errors. The speech processing pipeline is designed "
-        "to deliver high transcription accuracy without external cloud dependencies.",
-        body_style,
-    ))
-
-    story.append(Paragraph("5.1 Whisper Model Upgrade & Decoding Architecture", h2_style))
-    story.append(Paragraph(
-        "Initial prototypes utilizing tiny/base models exhibited high Word Error Rates (WER) on Italian art historical terminology, "
-        "frequently transcribing 'Caracciolo' as 'cara cholo' or 'Zevallos' as 'the valos'. The speech recognition engine (<code>src/speech/asr.py</code>) "
-        "was systematically upgraded to OpenAI's Whisper <b>small</b> model (244 million parameters, 960 MB checkpoint cached locally at "
-        "<code>~/.cache/whisper/small.pt</code>). Decoding operates with beam search (<code>beam_size=5</code>), greedy temperature search "
-        "(<code>temperature=0.0</code>), and strict language enforcement (<code>language='en'</code>).",
-        body_style,
-    ))
-
-    story.append(Paragraph("5.2 Domain-Conditioned Cross-Attention Prompting", h2_style))
-    story.append(Paragraph(
-        "Whisper's sequence-to-sequence transformer architecture conditions its decoder on an initial text prompt. We exploit this "
-        "mechanism by injecting a curated domain-specific phonetic prompt into every transcription request:",
-        body_style,
-    ))
-
-    prompt_box = (
-        "<b>Conditioning Prompt (DEFAULT_NEAPOLITAN_PROMPT):</b><br/>"
-        "\"Art in Naples: Caravaggio, Battistello Caracciolo, The Seven Works of Mercy, The Flagellation of Christ, "
-        "The Martyrdom of Saint Ursula, The Liberation of Saint Peter, The Washing of the Feet, Christ at the Column, "
-        "Trinitas Terrestris, Frescoes of the Chapel of the Assunta, Pio Monte della Misericordia, Museo Nazionale di Capodimonte, "
-        "Gallerie d'Italia Palazzo Zevallos Stigliano, Certosa di San Martino, Chiesa della Pietà dei Turchini, chiaroscuro, tenebrism.\""
-    )
-    story.append(Paragraph(prompt_box, code_style))
-
-    story.append(Paragraph(
-        "By priming the decoder's cross-attention layers with authentic Italian artist names, museum venues, and Baroque terminology, "
-        "phonetically ambiguous audio sequences are correctly mapped to canonical art historical entities.",
-        body_style,
-    ))
-
-    story.append(Paragraph("5.3 In-Memory Float32 Decoding & Audio Normalization", h2_style))
-    story.append(Paragraph(
-        "To eliminate runtime dependencies on system-installed <code>ffmpeg</code> binaries (which frequently fail on restricted host OS "
-        "environments), the pipeline integrates a native in-memory audio loader using <code>soundfile</code>. Incoming microphone audio "
-        "is decoded into 16 kHz mono float32 numpy arrays. The signal undergoes peak amplitude normalization, scaling the waveform so that "
-        "its maximum absolute value reaches 95% of full scale (0.95). This eliminates whisper attenuation and clipping distortion before "
-        "ingestion by Whisper's log-Mel filterbank extractor.",
-        body_style,
-    ))
-
-    story.append(Paragraph("5.4 Lexical & Phonetic Normalization Engine", h2_style))
-    story.append(Paragraph(
-        "Spoken transcripts inevitably contain acoustic and prepositional variations. The normalization engine (<code>_normalize_query_for_speech()</code>) "
-        "applies targeted regular expression transformations before entity resolution:",
-        body_style,
-    ))
-
-    norm_table_data = [
-        [Paragraph("Acoustic Artifact Pattern", table_header_style), Paragraph("Target Canonical Form", table_header_style), Paragraph("Linguistic / Phonetic Rationale", table_header_style)],
-        [Paragraph("seven works <b>for</b> mercy", table_cell), Paragraph("seven works <b>of</b> mercy", table_cell), Paragraph("Resolves acoustic confusion between English prepositions 'for' and 'of'.")],
-        [Paragraph("liberation <b>for</b> peter", table_cell), Paragraph("liberation <b>of saint</b> peter", table_cell), Paragraph("Expands colloquial omissions of 'saint' and acoustic preposition slip.")],
-        [Paragraph("capo <b>di</b> monte", table_cell), Paragraph("capodimonte", table_cell), Paragraph("Unifies spaced dialectal spelling to canonical museum name.")],
-        [Paragraph("karavaggio / caravagio", table_cell), Paragraph("caravaggio", table_cell), Paragraph("Maps phonetic German/Slavic 'k' substitutions and Italian single-g typos.")],
-        [Paragraph("caraciolo / batistello", table_cell), Paragraph("caracciolo / battistello", table_cell), Paragraph("Corrects non-native degemination (double consonant simplification).")],
-    ]
-    t_norm = Table(norm_table_data, colWidths=[140, 140, 232])
-    t_norm.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), c_primary),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("GRID", (0, 0), (-1, -1), 0.5, c_border),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.2),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, c_card_bg]),
-    ]))
-    story.append(t_norm)
-
-    story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 7: DIALOGUE MANAGEMENT & MULTI-TURN STATE TRACKING
-    # =========================================================================
-    story.append(Paragraph("6. Dialogue Management & Multi-Turn State Tracking", h1_style))
-    story.append(Paragraph(
-        "Real-world visitors engage in multi-turn conversational discourse, utilizing contextual pronouns ('it', 'this work', 'he') "
-        "and conversational ellipses rather than repeating full artwork titles in every utterance. The dialogue management subsystem "
-        "(<code>src/dialogue/state_tracker.py</code> and <code>src/dialogue/chatbot.py</code>) maintains a structured discourse state "
-        "to resolve anaphoric references dynamically.",
-        body_style,
-    ))
-
-    story.append(Paragraph("6.1 Formal Dialogue State Representation", h2_style))
-    story.append(Paragraph(
-        "At conversation turn <i>t</i>, the discourse state <i>S</i>(<i>t</i>) is formalized as a structured 5-tuple:",
-        body_style,
-    ))
-
-    state_formula = (
-        "<b>Discourse Memory State Tuple:</b><br/>"
-        "<i>S</i>(<i>t</i>) = (<i>Artist</i><sub><i>t</i></sub>, <i>Artwork</i><sub><i>t</i></sub>, <i>Location</i><sub><i>t</i></sub>, <i>City</i><sub><i>t</i></sub>, <i>Turn</i><sub><i>t</i></sub>)<br/>"
-        "• <b>Artist</b><sub><i>t</i></sub> in {'Caravaggio', 'Battistello Caracciolo', None} — Currently active focused master painter.<br/>"
-        "• <b>Artwork</b><sub><i>t</i></sub> in <i>V</i><sub>art</sub> or None — Active artwork entity dictionary from knowledge graph.<br/>"
-        "• <b>Location</b><sub><i>t</i></sub> in <i>V</i><sub>loc</sub> or None — Active museum or church venue in Naples.<br/>"
-        "• <b>City</b><sub><i>t</i></sub> = 'Naples' — Invariant municipal spatial focus.<br/>"
-        "• <b>Turn</b><sub><i>t</i></sub> in {0, 1, 2, ...} — Discrete dialogue turn counter."
-    )
-    story.append(Paragraph(state_formula, math_block))
-
-    story.append(Paragraph("6.2 Coreference & Anaphora Resolution Logic", h2_style))
-    story.append(Paragraph(
-        "When an incoming utterance lacks an explicit artwork title, the dialogue manager invokes pronoun detection. If the utterance "
-        "contains anaphoric markers (e.g. <i>'it'</i>, <i>'this painting'</i>, <i>'the canvas'</i>, <i>'this work'</i>, <i>'where is it'</i>) "
-        "and <i>Artwork</i><sub><i>t</i>-1</sub> is present, the active artwork entity is carried forward into turn <i>t</i> without entity drift. "
-        "For example, when a user asks <i>'Where can I find The Seven Works of Mercy?'</i> (Turn 1 establishes <i>Artwork</i><sub>1</sub>), "
-        "and follows with <i>'Who painted it?'</i> (Turn 2), the system resolves <i>'it'</i> directly to <i>Artwork</i><sub>1</sub>, retrieving "
-        "Caravaggio's creative attribution without ambiguity.",
-        body_style,
-    ))
-
-    story.append(Paragraph("6.3 State Tracking Workflow & Execution Lifecycle", h2_style))
-
-    workflow_steps = [
-        ("Step 1: Input Ingestion", "Utterance text received from Whisper ASR or text input field. Query normalized via speech regex engine."),
-        ("Step 2: Entity Recognition", "Parallel extraction of Candidate Artwork, Candidate Artist, and Candidate Location against graph aliases."),
-        ("Step 3: Coreference Resolution", "If no candidate artwork extracted, check for anaphoric pronouns against memory state S_{t-1}. Bind prior entity if matched."),
-        ("Step 4: Contradiction Reasoning", "Evaluate Inconsistency Engine across 5 violation dimensions. If contradiction found, construct corrective guidance."),
-        ("Step 5: Knowledge Generation", "If valid, execute Cypher/SQL traversal for target entity. Formulate soft curatorial natural language response."),
-        ("Step 6: State Update", "Update S_t with newly bound entities and increment turn counter tau_t = tau_{t-1} + 1. Store turn in conversation history."),
-    ]
-    for w_step, w_desc in workflow_steps:
-        story.append(Paragraph(f"• <b>{w_step}:</b> {w_desc}", bullet_style))
-
-    story.append(Spacer(1, 4))
-    story.append(make_callout(
-        "Discourse State Persistence Guarantee",
-        "The state tracker enforces idempotent updates: if a user shifts focus (e.g. from 'The Flagellation' to 'The Washing of the Feet'), "
-        "the active artwork, artist, and location are atomically updated, while unmentioned properties reset cleanly to prevent stale context bleeding."
-    ))
-
-    story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 8: FACTUAL INCONSISTENCY & CONTRADICTION REASONING
-    # =========================================================================
-    story.append(Paragraph("7. Factual Inconsistency & Contradiction Detection Engine", h1_style))
-    story.append(Paragraph(
-        "In domain-restricted cultural heritage applications, the dialogue agent must act not only as an information retrieval tool but "
-        "as an authoritative fact-checking guardrail. Visitors frequently harbor misconceptions regarding which master painted an artwork, "
-        "which church houses a canvas, or whether works located in Rome or Florence can be seen in Naples. The inconsistency engine "
-        "(<code>src/dialogue/inconsistency.py</code>) enforces five formal validation rules over the Knowledge Graph:",
-        body_style,
-    ))
-
-    story.append(Paragraph("7.1 Formal Mathematical Taxonomy of Contradictions", h2_style))
-
-    taxonomy_math = (
-        "<b>Formal Contradiction Predicates:</b><br/>"
-        "1. <b>Artist Attribution Mismatch (<i>I</i><sub>artist</sub>):</b><br/>"
-        "&nbsp;&nbsp;&nbsp;&nbsp;<i>I</i><sub>artist</sub>(<i>q</i>) = True iff there exists an artwork <i>a</i> in <i>V</i><sub>art</sub> and claimed artist <i>p</i> in <i>V</i><sub>artist</sub> "
-        "such that (<i>p</i>, <i>a</i>) is NOT in <i>E</i><sub>PAINTED</sub> and <i>p</i> is asserted in query <i>q</i>.<br/>"
-        "2. <b>Intra-Naples Location Mismatch (<i>I</i><sub>venue</sub>):</b><br/>"
-        "&nbsp;&nbsp;&nbsp;&nbsp;<i>I</i><sub>venue</sub>(<i>q</i>) = True iff there exists an artwork <i>a</i> in <i>V</i><sub>art</sub> and claimed venue <i>l</i> in <i>V</i><sub>loc</sub> "
-        "such that (<i>a</i>, <i>l</i>) is NOT in <i>E</i><sub>LOCATED_AT</sub> and <i>l</i> is asserted in query <i>q</i>.<br/>"
-        "3. <b>Geographic City Displacement (<i>I</i><sub>city</sub>):</b><br/>"
-        "&nbsp;&nbsp;&nbsp;&nbsp;<i>I</i><sub>city</sub>(<i>q</i>) = True iff query <i>q</i> references external artwork <i>a</i><sub>ext</sub> in <i>V</i><sub>external</sub> "
-        "where Location(<i>a</i><sub>ext</sub>) != 'Naples'.<br/>"
-        "4. <b>Out-of-Scope Artist Filtering (<i>I</i><sub>scope</sub>):</b><br/>"
-        "&nbsp;&nbsp;&nbsp;&nbsp;<i>I</i><sub>scope</sub>(<i>q</i>) = True iff query <i>q</i> references master artist <i>p</i><sub>ext</sub> outside the set {'Caravaggio', 'Battistello Caracciolo'}.<br/>"
-        "5. <b>Contextual Memory Contradiction (<i>I</i><sub>context</sub>):</b><br/>"
-        "&nbsp;&nbsp;&nbsp;&nbsp;<i>I</i><sub>context</sub>(<i>q</i>, <i>S</i><sub><i>t</i>-1</sub>) = True iff query <i>q</i> uses anaphoric reference ('it') while making a contradictory assertion against active memory entity <i>Artwork</i><sub><i>t</i>-1</sub>."
-    )
-    story.append(Paragraph(taxonomy_math, math_block))
-
-    story.append(Paragraph("7.2 Comprehensive Taxonomy Matrix", h2_style))
-
-    inc_matrix_headers = [
-        Paragraph("Contradiction Class", table_header_style),
-        Paragraph("Sample User Query", table_header_style),
-        Paragraph("Graph Ground Truth Reasoning", table_header_style),
-        Paragraph("System Corrective Response Formulation", table_header_style),
-    ]
-    inc_matrix_rows = [inc_matrix_headers]
-    matrix_samples = [
-        (
-            "Artist Mismatch",
-            "\"Did Battistello Caracciolo paint The Seven Works of Mercy?\"",
-            "Knowledge Graph verifies (:Caravaggio)-[:PAINTED]->(:Artwork {title: 'The Seven Works of Mercy'}). Claimed artist Battistello is invalid.",
-            "\"To clarify, 'The Seven Works of Mercy' was created by Caravaggio, not Battistello Caracciolo. Caravaggio painted it around 1607.\"",
-        ),
-        (
-            "Venue Mismatch (Naples)",
-            "\"Can I visit The Flagellation of Christ at Pio Monte della Misericordia?\"",
-            "Knowledge Graph verifies (:Artwork {title: 'The Flagellation'})-[:LOCATED_AT]->(:Location {name: 'Museo Nazionale di Capodimonte'}).",
-            "\"To clarify, 'The Flagellation of Christ' is not located at Pio Monte della Misericordia. It is permanently housed at Museo Nazionale di Capodimonte.\"",
-        ),
-        (
-            "City Displacement",
-            "\"Where can I see The Calling of Saint Matthew in Naples?\"",
-            "Entity detected in external catalog: (:Artwork {title: 'The Calling of Saint Matthew', city: 'Rome', location: 'San Luigi dei Francesi'}).",
-            "\"To clarify, 'The Calling of Saint Matthew' is not in Naples. It is located in Rome at San Luigi dei Francesi. In Naples, you can see Caravaggio's works at Pio Monte, Capodimonte, or Gallerie d'Italia.\"",
-        ),
-        (
-            "Out-of-Scope Master",
-            "\"Are there any paintings by Leonardo da Vinci in this Neapolitan tour?\"",
-            "Queried artist matches disallowed master outside Caravaggio/Battistello exhibition scope.",
-            "\"To clarify, 'Leonardo Da Vinci' is outside the scope of this Neapolitan exhibition. This system focuses strictly on Caravaggio and Battistello Caracciolo works visitable in Naples.\"",
-        ),
-    ]
-    for c_class, q_s, g_logic, s_resp in matrix_samples:
-        inc_matrix_rows.append([
-            Paragraph(f"<b>{c_class}</b>", table_cell),
-            Paragraph(f"<i>{q_s}</i>", table_cell),
-            Paragraph(g_logic, table_cell),
-            Paragraph(s_resp, table_cell),
-        ])
-
-    t_matrix = Table(inc_matrix_rows, colWidths=[90, 120, 140, 162])
-    t_matrix.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), c_primary),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("GRID", (0, 0), (-1, -1), 0.5, c_border),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.2),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, c_card_bg]),
-    ]))
-    story.append(t_matrix)
-
-    story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 9: CONVERSATIONAL NLG & NEURAL SPEECH SYNTHESIS (TTS)
-    # =========================================================================
-    story.append(Paragraph("8. Conversational Natural Language Generation & Neural TTS", h1_style))
-    story.append(Paragraph(
-        "A major limitation of early conversational database agents was their mechanical, tabular output formulation. When spoken "
-        "aloud, reading label prefixes (e.g. <i>'Art Movement and Style colon Baroque comma Tenebrism'</i>) creates an abrasive, artificial "
-        "user experience. The Natural Language Generation (NLG) engine was re-engineered to synthesize fluent, curatorial prose.",
-        body_style,
-    ))
-
-    story.append(Paragraph("8.1 Humanizing Generation: Comparative Output Analysis", h2_style))
-    story.append(Paragraph(
-        "The following side-by-side comparison highlights the qualitative shift achieved by the updated generation module for an identical "
-        "user query regarding Caravaggio's artistic biography:",
-        body_style,
-    ))
-
-    comp_headers = [Paragraph("Legacy Robotic Response (Colon Field Dump)", table_header_style), Paragraph("Updated Soft Curatorial Prose (Speech Optimized)", table_header_style)]
-    comp_data = [[
-        Paragraph(
-            "<b>Caravaggio:</b><br/>"
-            "Art Movement & Style: Baroque, Tenebrism, Chiaroscuro<br/>"
-            "Historical Significance: Pivotal influence on Neapolitan Baroque through stark naturalism and violent contrast of light and shade.<br/>"
-            "Neapolitan Activity: First Neapolitan stay (1606-1607), Second Neapolitan stay (1609-1610)<br/>"
-            "Works visitable in the urban area of Naples (3 artworks):<br/>"
-            "• 'The Seven Works of Mercy' (1607) at Pio Monte della Misericordia<br/>"
-            "• 'The Flagellation of Christ' (1607) at Museo Nazionale di Capodimonte<br/>"
-            "• 'The Martyrdom of Saint Ursula' (1610) at Gallerie d'Italia",
-            table_cell
-        ),
-        Paragraph(
-            "\"Michelangelo Merisi da Caravaggio (1571–1610) was a revolutionary master of the Italian Baroque, "
-            "celebrated for his pioneering use of Tenebrism and dramatic Chiaroscuro. During his pivotal stays in Naples "
-            "(1606–1607 and 1609–1610), his stark naturalism and violent contrast of light and shade exerted a defining influence "
-            "on the Neapolitan Baroque.<br/><br/>"
-            "In the urban area of Naples, you can visit 3 of his cataloged works:<br/>"
-            "• 'The Seven Works of Mercy' (1607) at Pio Monte della Misericordia<br/>"
-            "• 'The Flagellation of Christ' (1607) at Museo Nazionale di Capodimonte<br/>"
-            "• 'The Martyrdom of Saint Ursula' (1610) at Gallerie d'Italia (Palazzo Zevallos Stigliano)<br/><br/>"
-            "Feel free to ask about any of these paintings, their locations, dimensions, or iconography.\"",
-            table_cell
-        ),
-    ]]
-    t_comp = Table([comp_headers] + comp_data, colWidths=[240, 272])
-    t_comp.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), c_primary),
-        ("BACKGROUND", (0, 1), (0, 1), colors.HexColor("#f2f2f2")),
-        ("BACKGROUND", (1, 1), (1, 1), colors.white),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("GRID", (0, 0), (-1, -1), 0.5, c_border),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
-    ]))
-    story.append(t_comp)
-    story.append(Spacer(1, 4))
-
-    story.append(Paragraph("8.2 Neural Text-to-Speech (TTS) Synthesis", h2_style))
-    story.append(Paragraph(
-        "Spoken audio synthesis is executed via Microsoft Edge Neural TTS (<code>edge-tts</code>), deploying the neural model "
-        "<code>en-GB-RyanNeural</code>. This voice was selected after listening evaluations for its authoritative, clear, and cultured "
-        "British English cadence, ideal for international art gallery and museum audio-guides. The synthesizer generates 24 kHz MP3 audio "
-        "streams stored in <code>data/audio_cache/</code>. When offline or unnetworked, the engine falls back to <code>pyttsx3</code> native "
-        "system voices (macOS <i>Daniel</i> or <i>Samantha</i>), guaranteeing continuous voice synthesis capability.",
-        body_style,
-    ))
-
-    story.append(Paragraph("8.3 Single-Page Accordion Interface Design", h2_style))
-    story.append(Paragraph(
-        "The web user interface (<code>app.py</code>) is implemented in Streamlit with strict Light Mode styling enforced via "
-        "<code>.streamlit/config.toml</code> and CSS root overrides (<code>color-scheme: light !important</code>). Rather than fragmenting "
-        "the user journey across navigation tabs, the application presents a unified single-page layout: microphone input and text queries "
-        "sit alongside a live Discourse State Card at the top, while the entire Cultural Heritage Knowledge Graph catalog is housed in a "
-        "clean collapsible accordion (<code>st.expander</code>) at the bottom. Inside each artwork card, provenance links to Wikipedia and "
-        "DBpedia are tucked into native HTML5 <code>&lt;details&gt;</code> elements, ensuring zero interface clutter.",
-        body_style,
-    ))
-
-    story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 10: EXPERIMENTAL BENCHMARK & QUANTITATIVE EVALUATION
-    # =========================================================================
-    story.append(Paragraph("9. Experimental Benchmark & Quantitative Evaluation", h1_style))
-    story.append(Paragraph(
-        "To rigorously quantify the accuracy, precision, and latency of the dialogue system, an automated comprehensive stress suite "
-        "comprising 150 independent and sequential test cases was executed via <code>tests/stress_test_150.py</code>. The benchmark evaluates "
-        "all four classes of factual contradictions, multi-turn coreference dialogues, and ground-truth retrieval.",
-        body_style,
-    ))
-
-    story.append(Paragraph("9.1 Test Category Distribution & Methodology", h2_style))
-    story.append(Paragraph(
-        "The test suite partitions queries across six distinct functional categories:",
-        body_style,
-    ))
-
-    bench_dist = [
-        ("Artist Attribution Contradictions (30 tests)", "Asserts false creative authorship across all 8 cataloged works (e.g. attributing Caravaggio works to Battistello and vice versa). System must detect contradiction and assert true painter."),
-        ("Intra-Naples Location Contradictions (30 tests)", "Pairs valid Neapolitan works with incorrect museum venues within Naples (e.g. Capodimonte vs. Pio Monte). System must detect venue mismatch and assert true physical address."),
-        ("Geographic / City Contradictions (30 tests)", "Queries non-Neapolitan masterpieces by Caravaggio (Rome, Paris, Florence, Syracuse, Malta) or Leonardo da Vinci (Milan, Paris) as local exhibits. System must identify non-local status and specify host city."),
-        ("Out-of-Scope Master Filtering (15 tests)", "Inquires about famous artists outside the Neapolitan Baroque tour (Michelangelo, Raphael, Rembrandt, Monet, Picasso). System must assert scope boundary."),
-        ("Factual Ground-Truth Queries (25 tests)", "Valid queries seeking artwork locations, dimensions, years, artists, and venue addresses. System must retrieve exact graph attributes."),
-        ("Multi-Turn Discourse Sequences (20 tests)", "5 complete dialogues with 4 turns each, verifying pronoun resolution ('Where is it?' -> 'Who painted it?') followed by contextual contradiction injection."),
-    ]
-    for b_cat, b_desc in bench_dist:
-        story.append(Paragraph(f"• <b>{b_cat}:</b> {b_desc}", bullet_style))
-
-    story.append(Paragraph("9.2 Quantitative Empirical Results", h2_style))
-
-    eval_headers = [
-        Paragraph("Evaluation Category", table_header_style),
-        Paragraph("Total Tests", table_header_style),
-        Paragraph("Passed Tests", table_header_style),
-        Paragraph("Failed Tests", table_header_style),
-        Paragraph("Precision", table_header_style),
-        Paragraph("Recall", table_header_style),
-        Paragraph("Accuracy", table_header_style),
-    ]
-    eval_rows = [eval_headers]
-    eval_metrics = [
-        ("Artist Attribution Mismatch", "30", "30", "0", "100.00%", "100.00%", "100.00%"),
-        ("Venue Mismatch in Naples", "30", "30", "0", "100.00%", "100.00%", "100.00%"),
-        ("City Geographic Mismatch", "30", "30", "0", "100.00%", "100.00%", "100.00%"),
-        ("Out-of-Scope Master Artist", "15", "15", "0", "100.00%", "100.00%", "100.00%"),
-        ("Factual Ground Truth Retrieval", "25", "25", "0", "100.00%", "100.00%", "100.00%"),
-        ("Multi-Turn Discourse Sequences", "20", "20", "0", "100.00%", "100.00%", "100.00%"),
-        ("OVERALL SYSTEM BENCHMARK", "150", "150", "0", "100.00%", "100.00%", "100.00%"),
-    ]
-    for ec, tt, pt, ft, pr, rc, ac in eval_metrics:
-        is_tot = (ec == "OVERALL SYSTEM BENCHMARK")
-        st_c = table_header_style if is_tot else table_cell
-        eval_rows.append([
-            Paragraph(f"<b>{ec}</b>" if is_tot else ec, st_c),
-            Paragraph(tt, st_c), Paragraph(pt, st_c), Paragraph(ft, st_c),
-            Paragraph(pr, st_c), Paragraph(rc, st_c), Paragraph(f"<b>{ac}</b>" if is_tot else ac, st_c),
-        ])
-
-    t_eval = Table(eval_rows, colWidths=[130, 52, 52, 52, 65, 65, 96])
-    t_eval.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), c_primary),
-        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#222222")),
-        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("GRID", (0, 0), (-1, -1), 0.5, c_border),
-        ("TOPPADDING", (0, 0), (-1, -1), 2.2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.2),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, c_card_bg]),
-    ]))
-    story.append(t_eval)
-    story.append(Spacer(1, 4))
-
-    story.append(Paragraph("9.3 Confusion Matrix & Latency Profiling", h2_style))
-    perf_summary = (
-        "<b>Confusion Matrix Analysis:</b><br/>"
-        "• <b>True Positives (TP):</b> 110 — Contradictions correctly detected and categorized.<br/>"
-        "• <b>True Negatives (TN):</b> 40 — Valid inquiries correctly recognized as factual without false alarms.<br/>"
-        "• <b>False Positives (FP):</b> 0 — Zero legitimate inquiries misclassified as contradictions.<br/>"
-        "• <b>False Negatives (FN):</b> 0 — Zero contradictions overlooked.<br/>"
-        "• <b>F1-Score:</b> <i>F</i><sub>1</sub> = 2 &times; (Precision &times; Recall) / (Precision + Recall) = 100.00%<br/><br/>"
-        "<b>Latency Profiling Across Pipeline Stages:</b><br/>"
-        "• Knowledge Graph Traversal & Contradiction Reasoning: <b>1.97 ms</b> average latency per query.<br/>"
-        "• Whisper ASR Transcription (small model, float32 memory decoding): ~280 ms average latency.<br/>"
-        "• Neural Edge-TTS Synthesis: ~420 ms average latency for full paragraph synthesis.<br/>"
-        "• Total End-to-End Voice Turn Latency: ~700 ms, satisfying real-time conversational interactivity requirements."
-    )
-    story.append(Paragraph(perf_summary, math_block))
-
-    story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 11: QUALITATIVE TURN-BY-TURN DISCOURSE CASE STUDIES
-    # =========================================================================
-    story.append(Paragraph("10. Qualitative Turn-by-Turn Discourse Case Studies", h1_style))
-    story.append(Paragraph(
-        "To illustrate system behavior during natural human interaction, the following transcripts document live execution sessions "
-        "spanning biographical requests, phonetic speech distortion, multi-turn coreference, and compound contradiction resolution. "
-        "Each scenario highlights the interplay between acoustic transcription, state memory, graph reasoning, and curatorial prose generation:",
-        body_style,
-    ))
-
-    cs_cases = [
-        (
-            "Case Study 1: Open Curatorial Inquiry with Soft Biographical Narration",
-            "User: \"Who is Caravaggio? Tell me more about who is he or she.\"",
-            "\"Michelangelo Merisi da Caravaggio (1571–1610) was a revolutionary master of the Italian Baroque, "
-            "celebrated for his pioneering use of Tenebrism and dramatic Chiaroscuro. During his pivotal stays in Naples "
-            "(1606–1607 and 1609–1610), his stark naturalism and violent contrast of light and shade exerted a defining influence "
-            "on the Neapolitan Baroque.<br/>"
-            "In the urban area of Naples, you can visit 3 of his cataloged works:<br/>"
-            "• 'The Seven Works of Mercy' (1607) at Pio Monte della Misericordia<br/>"
-            "• 'The Flagellation of Christ' (1607) at Museo Nazionale di Capodimonte<br/>"
-            "• 'The Martyrdom of Saint Ursula' (1610) at Gallerie d'Italia (Palazzo Zevallos Stigliano)<br/>"
-            "Feel free to ask about any of these paintings, their locations, dimensions, or iconography.\"",
-            "Acoustic & Semantic Analysis: Demonstrates natural biographical synthesis. Instead of dumping raw database keys, the engine generates warm, contextual prose, enumerates all accessible works in Naples with their specific venues, and proactively invites the user to explore deeper iconographical details."
-        ),
-        (
-            "Case Study 2: Phonetic Accent & Acoustic Preposition Tolerance",
-            "User (Voice Input): \"Tell me about Seven Works for Mercy in Naples.\"",
-            "\"'The Seven Works of Mercy' is a masterpiece by Caravaggio, created in 1607. It is permanently preserved in Naples at "
-            "Pio Monte della Misericordia (Via dei Tribunali 253, 80139 Napoli), executed in oil on canvas with dimensions of 390 cm x 260 cm.<br/>"
-            "Caravaggio's most famous Neapolitan masterpiece, depicting the seven corporeal acts of mercy combined in a dramatic Neapolitan street setting.\"",
-            "Acoustic & Semantic Analysis: Demonstrates acoustic robustness. The non-native preposition substitution ('for' instead of 'of') was resolved in regex pre-processing, mapping to the canonical artwork entity without triggering an out-of-vocabulary failure."
-        ),
-        (
-            "Case Study 3: Multi-Turn Anaphora & Coreference Resolution",
-            "Turn 1: \"Where is The Flagellation located?\" -> Turn 2: \"Who painted it?\"",
-            "Turn 1 Response: \"'The Flagellation of Christ' by Caravaggio is permanently preserved at Museo Nazionale di Capodimonte, located on Via Miano 2, 80131 Napoli.\"<br/>"
-            "Turn 2 Response: \"'The Flagellation of Christ' was painted by Caravaggio in 1607. You can view this masterwork in Naples at Museo Nazionale di Capodimonte.\"",
-            "Acoustic & Semantic Analysis: Turn 1 establishes A_1^{artwork} in discourse memory. In Turn 2, the pronoun 'it' is seamlessly resolved to 'The Flagellation of Christ', enabling natural follow-up queries without repetitive artwork naming."
-        ),
-        (
-            "Case Study 4: Compound Inconsistency Detection (Artist & Venue Mismatch)",
-            "User: \"Can I visit Caravaggio's The Liberation of Saint Peter at Capodimonte?\"",
-            "\"To clarify, 'The Liberation of Saint Peter' was created by Battistello Caracciolo, not Caravaggio. Furthermore, it is not "
-            "located at Capodimonte; it is permanently housed at Pio Monte della Misericordia on Via dei Tribunali.\"",
-            "Acoustic & Semantic Analysis: Evaluates compound contradiction handling. Both the invalid artist claim (Battistello vs. Caravaggio) and invalid museum claim (Pio Monte vs. Capodimonte) are corrected in a single, coherent curatorial sentence."
-        ),
-    ]
-    for cs_title, cs_query, cs_resp, cs_anal in cs_cases:
-        story.append(Paragraph(f"<b>{cs_title}</b>", h2_style))
-        story.append(Paragraph(f"<b>User Utterance:</b> <i>{cs_query}</i>", body_style))
-        story.append(Paragraph(cs_resp, math_block))
-        story.append(Paragraph(f"<i>{cs_anal}</i>", ParagraphStyle("Anal", parent=body_style, fontSize=7.0, leading=9.5, textColor=c_muted)))
-
-    story.append(PageBreak())
-
-    # =========================================================================
-    # PAGE 12: VERTICAL PIPELINE WORKFLOW GRAPH & SYNCHRONIZED COMPUTATIONAL STAGES (1-12)
-    # =========================================================================
-    story.append(Paragraph("11. Pipeline Architecture Workflow Graph & End-to-End Orchestration", h1_style))
-    story.append(Paragraph(
-        "To provide a holistic view of the system's operational topology, Figure 1 diagrams the end-to-end dataflow across twelve "
-        "modular computational subsystems, arranged in a unified vertical processing hierarchy. The pipeline transitions sequentially through four distinct computational tiers: "
-        "(I) Multimodal Ingestion & Acoustic Preprocessing; (II) Semantic Parsing, State Tracking & Inconsistency Guardrails; "
-        "(III) Knowledge Store Integration & Dynamic Query Routing; and (IV) Curatorial Natural Language Generation & Neural Audio Delivery. "
-        "Critical exception paths, such as the direct contradiction override bypass from Stage 6 to Stage 10, guarantee deterministic factual grounding before response synthesis.",
-        body_style,
-    ))
-    story.append(Spacer(1, 3))
-
-    stage_p_style = ParagraphStyle("StageP", parent=body_style, fontSize=6.2, leading=7.9, textColor=c_dark)
-    caption_p_style = ParagraphStyle("FigCapVert", parent=body_style, fontSize=6.0, leading=7.6, textColor=c_muted)
-
     diagram_path = project_root / "docs" / "pipeline_architecture.png"
-    col1_flow = []
     if diagram_path.exists():
-        col1_flow.append(Image(str(diagram_path), width=160, height=555))
+        img_reader = ImageReader(str(diagram_path))
+        iw, ih = img_reader.getSize()
+        max_h = 600.0
+        max_w = 460.0
+        scale = min(max_w / iw, max_h / ih)
+        draw_w, draw_h = iw * scale, ih * scale
+        story.append(Image(str(diagram_path), width=draw_w, height=draw_h, hAlign="CENTER"))
+        story.append(P(
+            "Figure 1. The system's per-turn processing pipeline (right) and the one-time knowledge-graph "
+            "setup step (left, dashed box) that feeds it. Each box names the source file responsible for "
+            "that stage.",
+            caption_style,
+        ))
+        story.append(PageBreak())
 
-    col2_flow = [
-        Paragraph(
-            "<b>Figure 1: Full Twelve-Stage Vertical Multimodal Architecture & Workflow Graph.</b> Chronological top-to-bottom dataflow across 12 stages and 4 decoupled tiers. "
-            "The dashed edge indicates the contradiction override bypass directly routing to pedagogical reframing.",
-            caption_p_style,
-        ),
-        Spacer(1, 3),
-        Paragraph("11.1 Ingestion, Acoustics & Semantics (Stages 1–6)", h2_style),
-        Paragraph("• <b>Stage 1 — Multimodal Ingestion:</b> Voice audio stream (16 kHz) or typed text stream ingested via WebSocket into non-blocking in-memory audio buffers.", stage_p_style),
-        Paragraph("• <b>Stage 2 — Acoustic Engineering:</b> Whisper Small (244M params) with 0.95 peak amplitude normalization (x_norm = 0.95 * x / max|x|) and art-historical token priors.", stage_p_style),
-        Paragraph("• <b>Stage 3 — Phonetic Normalization:</b> Deterministic regex engine correcting preposition distortions ('works for mercy' -> 'works of mercy') and Italian degemination.", stage_p_style),
-        Paragraph("• <b>Stage 4 — Entity & Intent Parsing:</b> Hierarchical token classification against 8 artworks, 2 masters, 5 venues, and 8 conversational intent routes.", stage_p_style),
-        Paragraph("• <b>Stage 5 — Discourse Tracking (DST):</b> Dynamic state tracking S(t) = &lt;e_art, e_artist, e_venue&gt; with anaphoric pronoun coreference resolution within W &le; 3 turns.", stage_p_style),
-        Paragraph("• <b>Stage 6 — Inconsistency Guardrails:</b> 5-predicate truth verification (I_artist, I_venue, I_city, I_scope, I_context) intercepting contradictions prior to graph lookup.", stage_p_style),
-        Spacer(1, 3),
-        Paragraph("11.2 Knowledge Retrieval, Synthesis & Delivery (Stages 7–12)", h2_style),
-        Paragraph("• <b>Stage 7 — Query Selection Router:</b> Hierarchical entity dispatch (Artwork -> Location -> Artist) formulating parameterized Cypher and SQL query payloads.", stage_p_style),
-        Paragraph("• <b>Stage 8 — Dual Knowledge Graph:</b> Neo4j Cypher Bolt graph traversal (~2.1 ms) with transparent SQLite 3 embedded multi-join failover (&lt;1 ms) on socket drop.", stage_p_style),
-        Paragraph("• <b>Stage 9 — DBpedia SPARQL Ingestion:</b> W3C SPARQL 1.1 harvester extracting biographical dates, birthplaces, and local atomic JSON snapshot caching.", stage_p_style),
-        Paragraph("• <b>Stage 10 — Curatorial NLG Engine:</b> Speech-tailored natural prose generation avoiding key-value dumps and reframing factual discrepancies constructively.", stage_p_style),
-        Paragraph("• <b>Stage 11 — Neural Edge-TTS Voice:</b> Microsoft Edge Neural TTS (en-GB-RyanNeural, 24 kHz) with offline pyttsx3 synthesis failover within 420 ms.", stage_p_style),
-        Paragraph("• <b>Stage 12 — Client Presentation Hub:</b> Streamlit reactive web interface rendering native HTML5 audio playback, live discourse state badges, and multi-turn audit transcripts.", stage_p_style),
+    # ---------- 4. Data acquisition ----------
+    story.append(P("4. Data Acquisition from DBpedia", h1))
+    story.append(P(
+        "I wrote a SPARQL client (<font face='Courier'>src/data_pipeline/sparql_client.py</font>) that "
+        "queries the public DBpedia endpoint for biographical facts about the two artists (birth and "
+        "death dates, abstracts, movement) and for metadata about each artwork — dimensions, medium, "
+        "English abstract — where DBpedia has a dedicated entity for it. A representative query looks "
+        "like this:",
+        body,
+    ))
+    story.append(code(
+        "PREFIX dbo: <http://dbpedia.org/ontology/>\n"
+        "SELECT ?label ?abstract ?birthDate ?deathDate WHERE {\n"
+        "  <http://dbpedia.org/resource/Caravaggio> rdfs:label ?label .\n"
+        "  OPTIONAL { <http://dbpedia.org/resource/Caravaggio>\n"
+        "             dbo:abstract ?abstract . FILTER(lang(?abstract) = 'en') }\n"
+        "  OPTIONAL { <http://dbpedia.org/resource/Caravaggio> dbo:birthDate ?birthDate }\n"
+        "  FILTER (lang(?label) = 'en')\n"
+        "} LIMIT 1"
+    ))
+    story.append(P(
+        "Not every piece of information the chatbot needs is available through DBpedia with clean, "
+        "query-able fields — exact canvas dimensions and precise street addresses, for instance, are "
+        "inconsistently modeled across DBpedia entities, if present at all. I filled those gaps with a "
+        "small curated dataset (<font face='Courier'>src/data_pipeline/curated_dataset.py</font>) that "
+        "supplies the catalog's structural facts (title, artist, year, venue, address), while DBpedia "
+        "supplies the enrichment (abstracts, artist biography, canonical URIs). I see this as a "
+        "practical compromise, not a claim that the whole dataset is auto-harvested: I hand-verified the "
+        "backbone of the catalog against public sources myself, and I used SPARQL for what it's actually "
+        "good at — pulling structured biographical and descriptive facts tied to a DBpedia resource URI. "
+        "I merge results from both sources and write them to "
+        "<font face='Courier'>data/dbpedia_cache.json</font> so the system can start up and answer "
+        "questions without a live connection to DBpedia on every run.",
+        body,
+    ))
+
+    # ---------- 5. Knowledge graph ----------
+    story.append(P("5. Knowledge Graph: Neo4j with a Local Fallback", h1))
+    story.append(P(
+        "The graph schema is simple: an Artist node points to the Artworks they painted, each Artwork "
+        "points to the Location that houses it, and each Location points to its City. Artworks also "
+        "point to a handful of Subject nodes describing what they depict (for example, \"Christian "
+        "charity\" for The Seven Works of Mercy). Populating the current catalog produces 40 nodes and "
+        "46 relationships — 2 Artists, 8 Artworks, 5 Locations, 1 City, and 24 Subjects.",
+        body,
+    ))
+    story.append(P(
+        "<b>Why two backends.</b> The assignment specifies Neo4j, so I built the primary store "
+        "(<font face='Courier'>Neo4jGraphStore</font> in <font face='Courier'>src/data_pipeline/"
+        "graph_db.py</font>) to talk to it over the Bolt protocol with proper Cypher MERGE statements "
+        "and uniqueness constraints on artist names, artwork titles, and location names. But developing "
+        "and testing against a database server I had to start separately was slow and easy to forget, "
+        "and I didn't want anyone running my test suite to need a Neo4j instance just to see that the "
+        "dialogue logic works. So I also mirrored the same graph into an embedded SQLite store "
+        "(<font face='Courier'>LocalGraphStore</font>), using a generic two-table node/edge layout with "
+        "JSON-encoded properties, that requires no setup at all. At startup, "
+        "<font face='Courier'>NeapolitanArtGraph</font> tries to connect to Neo4j first and only falls "
+        "back to SQLite if that connection fails, so the dual-backend design is a convenience for "
+        "development and automated testing, not a way of avoiding the actual requirement.",
+        body,
+    ))
+    story.append(P(
+        "I verified this directly while preparing this report: with a Neo4j 5.15 instance running "
+        "locally (via Docker, bound to the standard ports 7474/7687), running the graph-build script "
+        "reports <font face='Courier'>Active backend: NEO4J</font>, and a Cypher query against the live "
+        "database confirms all eight (:Artist)-[:PAINTED]->(:Artwork)-[:LOCATED_AT]->(:Location)-"
+        "[:IN_CITY]->(:City) paths resolve correctly. Without a Neo4j instance available, the same code "
+        "path falls back to SQLite and the chatbot continues to work identically from the user's point "
+        "of view — the backend choice is invisible to the dialogue layer above it.",
+        body,
+    ))
+
+    # ---------- 6. Dialogue management ----------
+    story.append(P("6. Dialogue State and Coreference", h1))
+    story.append(P(
+        "People don't repeat the full title of a painting in every sentence. A typical exchange looks "
+        "like \"Tell me about the Seven Works of Mercy\" followed by \"Who painted it?\" and \"Where is "
+        "it?\" — and the system has to know that \"it\" still refers to the Seven Works of Mercy in "
+        "turn two and three. I built the dialogue state tracker "
+        "(<font face='Courier'>src/dialogue/state_tracker.py</font>) to keep three pointers — active "
+        "artist, active artwork, active location — updated after every turn, plus a full turn-by-turn "
+        "history. I handle pronoun resolution with a small set of regular expressions matched against "
+        "the current state: \"it / its / this / that\" resolves to the active artwork, \"he / him / his\" "
+        "to the active artist, and \"there / here\" to the active location.",
+        body,
+    ))
+    story.append(P(
+        "I didn't build a general coreference model — just a handful of hand-written patterns that work "
+        "because the domain is narrow and the referents are almost always unambiguous (there is rarely "
+        "more than one plausible \"it\" in a two-entity conversation). I think that's a reasonable "
+        "trade-off here, but I want to be upfront that it wouldn't scale to a richer domain without a "
+        "proper coreference resolution component.",
+        body,
+    ))
+
+    # ---------- 7. Inconsistency detection ----------
+    story.append(P("7. Inconsistency Detection", h1))
+    story.append(P(
+        "This was the part of the assignment that took me the most thought. I built the detector "
+        "(<font face='Courier'>src/dialogue/inconsistency.py</font>) to check every incoming question "
+        "against the graph before the dialogue manager tries to answer it, looking for four kinds of "
+        "mismatch:",
+        body,
+    ))
+    inc_header = [P("Type", table_head_cell), P("Example", table_head_cell), P("What happens", table_head_cell)]
+    inc_rows = [
+        inc_header,
+        [P("Artist mismatch", table_cell), P("\"I thought Caravaggio painted the Liberation of Saint Peter\"", table_cell),
+         P("Graph says Battistello Caracciolo painted it; system corrects the attribution and gives the year.", table_cell)],
+        [P("Venue mismatch", table_cell), P("\"Isn't the Seven Works of Mercy at Capodimonte?\"", table_cell),
+         P("Graph says Pio Monte della Misericordia; system corrects the venue and gives the address.", table_cell)],
+        [P("City mismatch", table_cell), P("\"Can I see Judith Beheading Holofernes in Naples?\"", table_cell),
+         P("That painting is in Rome; system says so and redirects to what is actually in Naples.", table_cell)],
+        [P("Out-of-scope artist", table_cell), P("\"What about Leonardo da Vinci's work in Naples?\"", table_cell),
+         P("Leonardo is outside the Caravaggio/Battistello scope; system explains the boundary politely.", table_cell)],
     ]
+    story.append(styled_table(inc_rows, [85, 195, 188]))
+    story.append(P(
+        "The detection logic is rule-based, not statistical: it looks for an artwork title (or an "
+        "active-artwork pronoun) in the query, then checks whether any disallowed artist name, venue "
+        "keyword, or non-Neapolitan artwork title co-occurs with it. I made it deliberately conservative "
+        "— it only flags a contradiction when it's confident, which kept the false-positive rate at zero "
+        "in my testing, but it also means a user who phrases a contradiction in an unusual way might "
+        "slip past it. One case I was explicitly careful about is genuine clarification questions: \"Did "
+        "Caravaggio paint this or Battistello?\" shouldn't be flagged as an inconsistency, since the user "
+        "is asking rather than asserting, so I added a special case for the \"... or ...\" / \"who\" "
+        "pattern to avoid that false alarm.",
+        body,
+    ))
+    story.append(P(
+        "A small but necessary detail: all of this matching happens after a normalization pass that "
+        "lowercases the text and smooths over likely speech-to-text artifacts — \"seven works for "
+        "mercy\" instead of \"of mercy\", \"capo di monte\" instead of \"Capodimonte\", digits spelled "
+        "out, and so on. Without it, a perfectly correct answer from Whisper that happens to use a "
+        "slightly different preposition than the stored title would fail to match anything.",
+        body,
+    ))
 
-    t_p12_layout = Table([[col1_flow, col2_flow]], colWidths=[166, 364])
-    t_p12_layout.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-    ]))
-    story.append(t_p12_layout)
+    # ---------- 8. Speech ----------
+    story.append(P("8. Speech Input and Output", h1))
+    story.append(P(
+        "<b>Speech recognition.</b> For transcription I use OpenAI's Whisper, run locally "
+        "(<font face='Courier'>src/speech/asr.py</font>), with English decoding forced and a short "
+        "domain-specific prompt (the artist names, painting titles, and venue names) passed in as "
+        "initial context to bias the decoder toward the right proper nouns — the same kind of prompt "
+        "conditioning Whisper exposes through its multitask token format (Radford et al., 2023). Before "
+        "transcription, I resample audio to 16 kHz mono and normalize it to zero mean with a peak "
+        "amplitude of 0.95 (<font face='Courier'>src/utils/audio_utils.py</font>), matching the "
+        "zero-mean, [-1, 1]-range normalization Whisper applies internally to its log-mel input.",
+        body,
+    ))
+    story.append(P(
+        "<b>ASR evaluation: Word Error Rate.</b> The standard metric for scoring a transcription against "
+        "a reference is Word Error Rate, WER = 100 × (Insertions + Substitutions + Deletions) / "
+        "(reference word count), computed from the minimum-edit-distance alignment between the two word "
+        "sequences. I implemented this directly (<font face='Courier'>word_error_rate()</font> in "
+        "<font face='Courier'>src/speech/asr.py</font>) and unit-tested it against the worked example "
+        "from my course textbook — a CallHome conversational excerpt with 6 substitutions, 3 insertions, "
+        "and 1 deletion over a 13-word reference, which the textbook reports as 76.9% WER and my "
+        "implementation reproduces exactly. When I ran it against the sample recording included in the "
+        "repository, Whisper transcribed it as \"<i>Tell me about the Seven Works of Mercy by Caravaggio "
+        "in Pio Monte della Misericordia.</i>\" — an exact match to the reference text, giving a WER of "
+        "0.00%. That's consistent with the textbook's own reported error rates: clearly articulated, "
+        "single-speaker read speech (like the LibriSpeech clean benchmark) sits around 1-2% WER, the "
+        "easiest end of the task's difficulty range, which is exactly the kind of input my system is "
+        "designed to handle.",
+        body,
+    ))
+    story.append(P(
+        "<b>A more honest accuracy test: real accented speech.</b> That 0.00% result nagged at me — the "
+        "sample clip ships in the repository at 24 kHz, the exact encoding profile of this project's own "
+        "Edge-TTS output, so it is very likely synthetic speech rather than a genuine recording, which "
+        "would explain why every Whisper checkpoint I tried (tiny through medium) transcribed it "
+        "perfectly. To get a real signal, I recorded myself reading ten domain sentences out loud "
+        "through the app's own microphone input — ordinary accented speech, not a clean studio read — "
+        "and measured WER against the Whisper <font face='Courier'>small</font> checkpoint I had been "
+        "using by default. The result was 18.1%, concentrated in exactly the words a closed-domain "
+        "demo cares about most: \"Flagellation\" misheard as \"legislation,\" \"venues\" as \"Vensos,\" "
+        "and proper nouns like Capodimonte dropped or garbled. Switching to the "
+        "<font face='Courier'>medium</font> checkpoint brought that down to 15.0%, mostly by fixing the "
+        "proper-noun errors. I then swept beam size (1, 5, 10) and Whisper's temperature-fallback "
+        "schedule against the same ten recordings: none of it moved the error rate at all for this "
+        "checkpoint, but beam_size=1 ran in about a fifth the time of beam_size=10 for identical "
+        "accuracy, and dropping the domain prompt nearly doubled the error rate to 29.7% — confirming "
+        "that prompt conditioning, not beam width, is what's actually carrying the proper-noun accuracy "
+        "here. The deployed configuration is now <font face='Courier'>medium</font> with "
+        "<font face='Courier'>beam_size=1</font>, the domain prompt, and the temperature-fallback "
+        "schedule enabled as a safety net for harder audio, even though it made no measurable difference "
+        "on this particular ten-sentence set.",
+        body,
+    ))
+    story.append(P(
+        "<b>Speech synthesis.</b> I read responses aloud with Microsoft's Edge-TTS "
+        "(<font face='Courier'>src/speech/tts.py</font>), a neural voice reached over the network, with "
+        "pyttsx3 as an offline fallback if that call fails for any reason — no internet, rate limiting, "
+        "and so on. I exercised both engines directly while preparing this report and both produced "
+        "valid audio output. I lightly clean the response text before synthesis (markdown characters "
+        "stripped) so bullet points and headers in the text responses don't get read aloud literally. "
+        "It's worth being explicit that this is not the zero-shot voice-cloning architecture (a "
+        "codec-based language model conditioned on a short reference recording) that my course textbook "
+        "presents as the modern approach to TTS: Edge-TTS synthesizes in a single fixed voice "
+        "(en-GB-RyanNeural) with no speaker adaptation, and the pyttsx3 fallback relies on the host "
+        "operating system's built-in synthesizer, which is architecturally closer to the older "
+        "concatenative and formant-based methods than to a neural codec-language-model pipeline. That "
+        "trade-off was intentional on my part: this system needs one consistent, reliable museum-guide "
+        "voice, not per-user voice cloning.",
+        body,
+    ))
+
+    # ---------- 9. Web interface ----------
+    story.append(P("9. Web Interface and Command-Line Tool", h1))
+    story.append(P(
+        "I kept the Streamlit app (<font face='Courier'>app.py</font>) deliberately simple: a single "
+        "page rather than a multi-tab layout, since there's only one real task — ask a question, read "
+        "or hear the answer. The top of the page has a microphone widget and a text input side by side, "
+        "a small state card showing the currently active artist / artwork / location (useful for "
+        "debugging coreference while I was testing), and the running conversation transcript. Below "
+        "that, a collapsible section exposes the full catalog pulled live from the graph, with each "
+        "entry linking back to its DBpedia and Wikipedia source — I wanted it so that if the chatbot "
+        "says something, a user can check where it came from without leaving the page. I enforced a "
+        "light color scheme through <font face='Courier'>.streamlit/config.toml</font> since the dark "
+        "Streamlit default didn't read well against the museum-catalog look I was going for.",
+        body,
+    ))
+    story.append(P(
+        "For quicker iteration while I was developing the dialogue logic, I also built "
+        "<font face='Courier'>scripts/interactive_cli.py</font>, which exposes the same "
+        "<font face='Courier'>NeapolitanArtChatbot</font> class through a plain terminal loop, with no "
+        "Streamlit startup time and no browser involved. I debugged most of the conversational logic "
+        "through the CLI first and only checked it in the browser afterward, since a terminal round-trip "
+        "is faster to restart than a Streamlit rerun.",
+        body,
+    ))
+
+    # ---------- 10. Example conversations ----------
+    story.append(P("10. Example Conversations", h1))
+    story.append(P(
+        "The transcripts below are taken directly from running sessions against the live system (not "
+        "edited for presentation) and are meant to show how the pieces described above work together in "
+        "practice.",
+        body,
+    ))
+
+    story.append(P("<b>Case 1 — coreference across four turns.</b>", h2))
+    story.append(code(
+        "User: Tell me about the Seven Works of Mercy\n"
+        "Bot:  'The Seven Works of Mercy' is a masterpiece by Caravaggio, created\n"
+        "      in 1607. It is permanently preserved in Naples at Pio Monte della\n"
+        "      Misericordia (Via dei Tribunali 253)...\n\n"
+        "User: Who painted it?\n"
+        "Bot:  'The Seven Works of Mercy' was created by Caravaggio in 1607...\n\n"
+        "User: Where is it located?\n"
+        "Bot:  ...permanently preserved at Pio Monte della Misericordia, located\n"
+        "      on Via dei Tribunali 253, 80139 Napoli...\n\n"
+        "User: Did he also paint anything else?\n"
+        "Bot:  You can visit 3 works by Caravaggio in the urban area of Naples:\n"
+        "      - 'The Seven Works of Mercy' (1607) at Pio Monte della Misericordia\n"
+        "      - 'The Flagellation of Christ' (1607) at Museo Nazionale di\n"
+        "        Capodimonte\n"
+        "      - 'The Martyrdom of Saint Ursula' (1610) at Gallerie d'Italia"
+    ))
+    story.append(P(
+        "The pronoun \"it\" in turns two and three, and \"he\" in turn four, are all resolved against the "
+        "state set in turn one, without the user ever repeating the title \"Seven Works of Mercy\" by "
+        "name.",
+        body,
+    ))
+
+    story.append(P("<b>Case 2 — a contradiction raised mid-conversation, not as an opening question.</b>", h2))
+    story.append(code(
+        "User: Tell me about the Liberation of Saint Peter\n"
+        "Bot:  ...a masterpiece by Battistello Caracciolo, created in 1615...\n"
+        "      permanently preserved at Pio Monte della Misericordia...\n\n"
+        "User: I thought Caravaggio painted this\n"
+        "Bot:  To clarify, 'The Liberation of Saint Peter' was created by\n"
+        "      Battistello Caracciolo, not Caravaggio. Battistello Caracciolo\n"
+        "      painted 'The Liberation of Saint Peter' around 1615.\n\n"
+        "User: Isn't this at Capodimonte?\n"
+        "Bot:  To clarify, 'The Liberation of Saint Peter' is not located at\n"
+        "      Museo Nazionale di Capodimonte. It is permanently housed at Pio\n"
+        "      Monte della Misericordia."
+    ))
+    story.append(P(
+        "This is the scenario the automated 150-case suite does not really exercise, since its "
+        "contradiction tests are mostly standalone questions. Here the contradiction (\"this\") depends "
+        "on the artwork established one turn earlier, combining coreference resolution and "
+        "inconsistency detection in the same turn — both had to be working correctly for this exchange "
+        "to come out right.",
+        body,
+    ))
+
+    story.append(P("<b>Case 3 — speech-to-text noise handled without a crash or a wrong answer.</b>", h2))
+    story.append(code(
+        "User (voice, transcribed): \"who painted the seven works for mercy\"\n"
+        "Bot:  'The Seven Works of Mercy' was created by Caravaggio in 1607...\n\n"
+        "User (voice, transcribed): \"where is the flagelation of christ\"\n"
+        "Bot:  'The Flagellation of Christ' by Caravaggio is permanently\n"
+        "      preserved at Museo Nazionale di Capodimonte..."
+    ))
+    story.append(P(
+        "Neither \"works for mercy\" (instead of \"of mercy\") nor the misspelling \"flagelation\" "
+        "prevented the system from matching the right artwork — both are caught by the normalization "
+        "step described in Section 7.",
+        body,
+    ))
 
     story.append(PageBreak())
 
-    # =========================================================================
-    # PAGE 13: QUERY TAXONOMY (TABLE 10) & DETERMINISTIC QUERY SELECTION TREE
-    # =========================================================================
-    story.append(Paragraph("12. Knowledge Graph Query Taxonomy & Detailed Query Catalog", h1_style))
-    story.append(Paragraph(
-        "The system operates a total of <b>fifteen distinct computational queries</b> spanning four distinct operational layers: "
-        "(1) <i>Linked Data Ingestion Queries</i> (2 SPARQL 1.1 queries); (2) <i>Graph Traversal Queries</i> (5 Neo4j Cypher templates); "
-        "(3) <i>Embedded Relational Queries</i> (3 SQLite 3 indexed JOINs); and (4) <i>Contradiction Verification Queries</i> (5 formal boolean predicates). "
-        "Table 10 provides a complete catalog of all queries, their target entities, execution engines, and empirical latencies.",
-        body_style,
+    # ---------- 11. Design decisions and challenges ----------
+    story.append(P("11. Design Decisions and Challenges Along the Way", h1))
+    story.append(P(
+        "A few choices in this project weren't obvious to me from the start, and I think they're worth "
+        "explaining rather than presenting as if they were the plan from day one.",
+        body,
     ))
-
-    # Table 10: Complete Query Taxonomy (15 Queries)
-    q_headers = [
-        Paragraph("Query ID", table_header_style),
-        Paragraph("Layer", table_header_style),
-        Paragraph("Formal Query Type", table_header_style),
-        Paragraph("Target Entities / Logical Predicates", table_header_style),
-        Paragraph("Execution Engine", table_header_style),
-        Paragraph("Latency", table_header_style),
-    ]
-
-    q_data = [
-        q_headers,
-        [Paragraph("<b>Q-SPARQL-1</b>", table_cell), Paragraph("Ingest", table_cell), Paragraph("SPARQL 1.1 SELECT", table_cell), Paragraph("Caravaggio & Battistello biographical properties (dbo:birthDate, deathDate, dbo:abstract)", table_cell), Paragraph("DBpedia Endpoint", table_cell), Paragraph("~350 ms", table_cell)],
-        [Paragraph("<b>Q-SPARQL-2</b>", table_cell), Paragraph("Ingest", table_cell), Paragraph("SPARQL 1.1 SELECT", table_cell), Paragraph("Artwork URIs, English labels, and museum holdings (dbo:author, dbo:museum)", table_cell), Paragraph("DBpedia Endpoint", table_cell), Paragraph("~420 ms", table_cell)],
-        [Paragraph("<b>Q-CYPHER-1</b>", table_cell), Paragraph("Graph", table_cell), Paragraph("2-Hop Subgraph MATCH", table_cell), Paragraph("(Artist)-[:PAINTED]->(Artwork)-[:LOCATED_AT]->(Location) full catalog join", table_cell), Paragraph("Neo4j Bolt Driver", table_cell), Paragraph("2.10 ms", table_cell)],
-        [Paragraph("<b>Q-CYPHER-2</b>", table_cell), Paragraph("Graph", table_cell), Paragraph("Filtered MATCH", table_cell), Paragraph("(Artist {name: $artist})-[:PAINTED]->(Artwork) sub-oeuvre extraction", table_cell), Paragraph("Neo4j Bolt Driver", table_cell), Paragraph("1.82 ms", table_cell)],
-        [Paragraph("<b>Q-CYPHER-3</b>", table_cell), Paragraph("Graph", table_cell), Paragraph("Filtered MATCH", table_cell), Paragraph("(Artwork)-[:LOCATED_AT]->(Location {name: $location}) venue holding extraction", table_cell), Paragraph("Neo4j Bolt Driver", table_cell), Paragraph("1.74 ms", table_cell)],
-        [Paragraph("<b>Q-CYPHER-4</b>", table_cell), Paragraph("Graph", table_cell), Paragraph("Single Node MATCH", table_cell), Paragraph("(Artwork {title: $title}) exact and substring property lookup", table_cell), Paragraph("Neo4j Bolt Driver", table_cell), Paragraph("1.48 ms", table_cell)],
-        [Paragraph("<b>Q-CYPHER-5</b>", table_cell), Paragraph("Graph", table_cell), Paragraph("DDL Constraint", table_cell), Paragraph("CREATE CONSTRAINT FOR (a:Artwork) REQUIRE a.title IS UNIQUE", table_cell), Paragraph("Neo4j Schema Engine", table_cell), Paragraph("0.35 ms", table_cell)],
-        [Paragraph("<b>Q-SQL-1</b>", table_cell), Paragraph("Local", table_cell), Paragraph("2-Hop Table JOIN", table_cell), Paragraph("SELECT FROM nodes a JOIN edges e1 (PAINTED) JOIN edges e2 (LOCATED_AT)", table_cell), Paragraph("SQLite 3 Engine", table_cell), Paragraph("0.92 ms", table_cell)],
-        [Paragraph("<b>Q-SQL-2</b>", table_cell), Paragraph("Local", table_cell), Paragraph("Indexed Aggregate", table_cell), Paragraph("SELECT properties FROM nodes WHERE label = 'Location' + artwork count aggregations", table_cell), Paragraph("SQLite 3 Engine", table_cell), Paragraph("0.64 ms", table_cell)],
-        [Paragraph("<b>Q-SQL-3</b>", table_cell), Paragraph("Local", table_cell), Paragraph("Indexed Aggregate", table_cell), Paragraph("SELECT properties FROM nodes WHERE label = 'Artist' + oeuvre list aggregations", table_cell), Paragraph("SQLite 3 Engine", table_cell), Paragraph("0.58 ms", table_cell)],
-        [Paragraph("<b>Q-PRED-1</b>", table_cell), Paragraph("Guard", table_cell), Paragraph("Attribution Predicate", table_cell), Paragraph("I_artist(u): Verify claimed artist matches true graph artist attribution", table_cell), Paragraph("Inconsistency Engine", table_cell), Paragraph("<0.05 ms", table_cell)],
-        [Paragraph("<b>Q-PRED-2</b>", table_cell), Paragraph("Guard", table_cell), Paragraph("Location Predicate", table_cell), Paragraph("I_venue(u): Verify claimed Neapolitan museum matches true graph location", table_cell), Paragraph("Inconsistency Engine", table_cell), Paragraph("<0.05 ms", table_cell)],
-        [Paragraph("<b>Q-PRED-3</b>", table_cell), Paragraph("Guard", table_cell), Paragraph("Spatial Predicate", table_cell), Paragraph("I_city(u): Intercept external non-Neapolitan masterpieces (Rome, Florence, Paris)", table_cell), Paragraph("Inconsistency Engine", table_cell), Paragraph("<0.05 ms", table_cell)],
-        [Paragraph("<b>Q-PRED-4</b>", table_cell), Paragraph("Guard", table_cell), Paragraph("Scope Predicate", table_cell), Paragraph("I_scope(u): Detect out-of-scope Italian masters (Bernini, Raphael, Michelangelo)", table_cell), Paragraph("Inconsistency Engine", table_cell), Paragraph("<0.05 ms", table_cell)],
-        [Paragraph("<b>Q-PRED-5</b>", table_cell), Paragraph("Guard", table_cell), Paragraph("Discourse Predicate", table_cell), Paragraph("I_context(u): Detect pronoun contradiction against prior turn state S(t-1)", table_cell), Paragraph("Inconsistency Engine", table_cell), Paragraph("<0.05 ms", table_cell)],
-    ]
-
-    t_query_tax = Table(q_data, colWidths=[62, 42, 92, 182, 92, 42])
-    t_query_tax.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), c_primary),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
-        ("ALIGN", (5, 0), (5, -1), "CENTER"),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("BOX", (0, 0), (-1, -1), 0.5, c_border),
-        ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#dddddd")),
-        ("TOPPADDING", (0, 0), (-1, -1), 1.6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.6),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2.5),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2.5),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, c_card_bg]),
-    ]))
-    story.append(t_query_tax)
-
-    story.append(Spacer(1, 4))
-    story.append(Paragraph("12.3 Deterministic Query Selection Tree & Dynamic Routing Logic", h1_style))
-    story.append(Paragraph(
-        "The selection and formulation of database queries is governed by a deterministic, multi-stage decision sequence designed to minimize "
-        "graph overhead while ensuring absolute factual integrity. The decision tree proceeds through five discrete operational phases:",
-        body_style,
+    story.append(P(
+        "<b>Rule-based response generation instead of an LLM.</b> Early on I briefly considered wrapping "
+        "an LLM around the graph query results to generate more varied phrasing. I dropped the idea for "
+        "two reasons. First, it reintroduces exactly the hallucination risk I was trying to avoid — even "
+        "when fed correct facts, a generative model can drift and add details that were never in the "
+        "input. Second, and more practically, my emphasis on inconsistency detection only really works "
+        "if the system's factual claims are traceable back to a specific graph query; a templated "
+        "response keeps that traceability, a generated one doesn't without extra guardrails that were "
+        "out of scope here. The response generator in <font face='Courier'>src/dialogue/chatbot.py</font> "
+        "instead branches on question type (location, authorship, dimensions, significance, date) and "
+        "fills a template with the matching graph fields — simpler, but every word in a response can be "
+        "traced to a specific property on a specific node.",
+        body,
     ))
-
-    decision_steps = [
-        ("Step 1: Contradiction Pre-Check Filter",
-         "The utterance is evaluated against the five inconsistency predicates: I(u) = I_artist v I_venue v I_city v I_scope v I_context. "
-         "If I(u) = True, execution is immediately diverted away from the knowledge graph: no database queries are dispatched. Instead, the dialogue "
-         "manager constructs a pedagogical refutation articulating the factual discrepancy and suggesting valid local masterworks."),
-        ("Step 2: Anaphora & Coreference Binding",
-         "If the utterance contains anaphoric pronouns ('it', 'this work', 'where is that') and no explicit artwork entity is detected, "
-         "the query router checks dialogue state S(t-1). If S_art(t-1) is non-empty and within the recency threshold (W <= 3 turns), the router "
-         "binds the antecedent artwork entity e_art = S_art(t-1), injecting it into subsequent query generation."),
-        ("Step 3: Entity Hierarchy Dispatch",
-         "When no contradiction is present, the parser dispatches queries based on entity specificity: (a) Artwork Detected -> binds e_art and triggers "
-         "Q-CYPHER-4 or Q-SQL-1; (b) Location Detected -> binds e_loc and triggers Q-CYPHER-3 or Q-SQL-2; (c) Artist Detected -> binds e_artist and triggers "
-         "Q-CYPHER-2 or Q-SQL-3; (d) Overview Keywords -> triggers full catalog retrieval; (e) Unmatched -> triggers fallback suggestions."),
-        ("Step 4: Conversational Intent Sub-Routing",
-         "For an identified artwork e_art, the router inspects token intent: (i) Spatial ('where', 'visit') -> selects location & address properties; "
-         "(ii) Attribution ('who painted') -> selects artist node; (iii) Physical ('dimensions', 'medium') -> selects measurement properties; "
-         "(iv) Iconography ('meaning', 'significance') -> selects descriptive commentary & DBpedia abstract; (v) Chronology ('year', 'when') -> selects execution date."),
-        ("Step 5: Backend Failover Dispatch",
-         "NeapolitanArtGraph pings the Neo4j Bolt socket. If alive, the parameterized Cypher query (e.g. MATCH (a:Artwork {title: $t})) is executed. "
-         "If the connection fails or times out (>50 ms), the circuit breaker automatically delegates execution to the embedded SQLite engine (Q-SQL-1), "
-         "executing the equivalent indexed SQL join with zero perceptible latency change."),
-    ]
-    for d_title, d_desc in decision_steps:
-        story.append(Paragraph(f"• <b>{d_title}:</b> {d_desc}", bullet_style))
+    story.append(P(
+        "<b>Handling phonetic and spelling variation.</b> My first version of the entity matcher only "
+        "matched exact artwork titles, and it broke almost immediately once I tested it with real speech "
+        "input — Whisper would transcribe \"of Mercy\" as \"for Mercy\" fairly often, and would "
+        "sometimes render \"Caracciolo\" with a single consonant. Rather than retrain or swap ASR "
+        "models, I added a normalization layer (Section 7) that runs before any matching happens, "
+        "mapping known acoustic confusions back to the canonical form. That turned out to generalize "
+        "well across both the artwork matcher and the inconsistency detector, since both call the same "
+        "normalization function.",
+        body,
+    ))
+    story.append(P(
+        "<b>Choosing the Whisper model size.</b> The smallest Whisper checkpoints (tiny/base) were fast "
+        "but made frequent proper-noun errors on exactly the words I most needed right — Italian museum "
+        "names and the two artists' names. Moving to the <font face='Courier'>small</font> checkpoint, "
+        "combined with passing the artist/artwork/venue names as an initial decoding prompt, noticeably "
+        "reduced those errors in my informal testing, at the cost of a slightly longer load time on "
+        "first use. Since this is a demo application rather than a production service handling "
+        "concurrent users, that trade-off was an easy one for me to make.",
+        body,
+    ))
+    story.append(P(
+        "<b>Keeping SQLite as more than a toy fallback.</b> Early on, the SQLite backend was a quick "
+        "stand-in so I could develop the dialogue logic without a database server running. I kept it in "
+        "the final design because it turned out to be useful beyond convenience: my automated test suite "
+        "runs against it directly, which means CI-style testing doesn't depend on an external service "
+        "being reachable. I kept the schema close to the Neo4j one (nodes-and-edges rather than a "
+        "bespoke relational layout) specifically so the two stores couldn't drift apart in what they "
+        "represent, even though their storage mechanics are completely different.",
+        body,
+    ))
 
     story.append(PageBreak())
 
-    # =========================================================================
-    # PAGE 14: CODE TEMPLATES, DEPLOYMENT & STRATEGIC TRAJECTORIES
-    # =========================================================================
-    story.append(Paragraph("12.4 Parameterized Query Execution Templates", h1_style))
-    story.append(Paragraph(
-        "Below are the primary parameterized query templates deployed across the primary Neo4j Cypher engine and embedded SQLite 3 failover store:",
-        body_style,
+    # ---------- 12. Evaluation ----------
+    story.append(P("12. Evaluation", h1))
+    story.append(P(
+        "I built two automated test layers. The first is a small pytest suite "
+        "(<font face='Courier'>tests/test_dialogue.py</font>, "
+        "<font face='Courier'>tests/test_inconsistency.py</font>, "
+        "<font face='Courier'>tests/test_asr.py</font>) covering the basic behaviors — single-turn "
+        "artwork queries, multi-turn coreference, each inconsistency category, the no-false-positive "
+        "case, and the Word Error Rate metric from Section 8 (both as a unit test against the textbook's "
+        "worked example and end-to-end against a real Whisper transcription), plus six regression tests "
+        "added after the adversarial testing described in Section 13. All 17 tests pass.",
+        body,
+    ))
+    story.append(P(
+        "The second is a larger, self-contained benchmark I wrote "
+        "(<font face='Courier'>tests/stress_test_150.py</font>) covering 150 queries across six "
+        "categories: artist mismatch (30), venue mismatch (30), city mismatch (30), out-of-scope artist "
+        "(15), factual ground-truth retrieval (25), and five-turn discourse sequences (20). All 150 "
+        "cases pass, with zero false positives and zero false negatives on the inconsistency checks "
+        "(110 true positives, 40 true negatives), giving precision, recall, and F1 of 100% on this test "
+        "set.",
+        body,
+    ))
+    perf_header = [P("Category", table_head_cell), P("Tests", table_head_cell), P("Passed", table_head_cell)]
+    perf_rows = [
+        perf_header,
+        [P("Artist attribution mismatch", table_cell), P("30", table_cell), P("30", table_cell)],
+        [P("Venue mismatch", table_cell), P("30", table_cell), P("30", table_cell)],
+        [P("City mismatch", table_cell), P("30", table_cell), P("30", table_cell)],
+        [P("Out-of-scope artist", table_cell), P("15", table_cell), P("15", table_cell)],
+        [P("Factual ground-truth retrieval", table_cell), P("25", table_cell), P("25", table_cell)],
+        [P("Multi-turn discourse sequences", table_cell), P("20", table_cell), P("20", table_cell)],
+        [P("Total", table_cell), P("150", table_cell), P("150", table_cell)],
+    ]
+    story.append(styled_table(perf_rows, [280, 94, 94]))
+    story.append(P(
+        "On timing: the full 150-query suite runs against the graph in well under a second — about 0.14 "
+        "s end-to-end (roughly 0.95 ms per query) when backed by the embedded SQLite store, and about "
+        "0.78 s (roughly 5.2 ms per query) when backed by a live Neo4j instance, since every query "
+        "there crosses the network stack over Bolt. These numbers only cover the text-based dialogue "
+        "logic; ASR and TTS were verified to work correctly but were not put through a formal timing "
+        "benchmark, since the point of this project is accuracy of the reasoning, not raw throughput.",
+        body,
+    ))
+    story.append(P(
+        "It's worth being honest about what this benchmark does and does not prove. It is a suite I "
+        "wrote myself, targeting the exact categories the system is designed to catch, phrased in ways "
+        "close to the patterns the detector matches on. A 100% score here says the implementation is "
+        "internally consistent and bug-free against its own design, not that it would handle arbitrary, "
+        "unscripted phrasing from a real visitor with the same accuracy. The manual testing described "
+        "below was meant to probe exactly that gap.",
+        body,
     ))
 
-    query_templates = (
-        "// Cypher Query Template (Parameterized Subgraph Traversal)\n"
-        "MATCH (p:Artist)-[:PAINTED]->(a:Artwork {title: $artwork_title})-[:LOCATED_AT]->(l:Location)\n"
-        "RETURN a.title, a.year, a.medium, a.dimensions, a.description, p.name AS artist, l.name AS location, l.address;\n\n"
-        "-- SQLite 3 Query Template (Embedded Relational 2-Hop Join Failover)\n"
-        "SELECT a.properties AS art_prop, p.properties AS artist_prop, l.properties AS loc_prop\n"
-        "FROM nodes a JOIN edges e1 ON e1.target_id = a.id AND e1.relation = 'PAINTED'\n"
-        "JOIN nodes p ON p.id = e1.source_id JOIN edges e2 ON e2.source_id = a.id AND e2.relation = 'LOCATED_AT'\n"
-        "JOIN nodes l ON l.id = e2.target_id WHERE a.label = 'Artwork' AND json_extract(a.properties, '$.title') = ?;"
-    )
-    story.append(Paragraph(query_templates.replace("\n", "<br/>").replace(" ", "&nbsp;"), code_style))
-
-    story.append(Spacer(1, 4))
-    story.append(Paragraph("13. System Deployment, Failure Modes & Engineering Mitigations", h1_style))
-    story.append(Paragraph(
-        "The system is architected for zero-configuration reproducibility across server containers and offline edge devices. "
-        "Standard execution is initialized via shell commands: <code>python3 -m venv .venv && pip install -r requirements.txt</code>, "
-        "followed by <code>docker run -d -p 7687:7687 neo4j:5.26</code>, <code>python scripts/build_graph.py</code>, and "
-        "<code>streamlit run app.py --server.port 8502</code>.<br/>"
-        "<b>Engineering Mitigations:</b> (1) <i>Acoustic Reverberation:</i> In high-ceilinged stone churches (>2.5s reverberation), Whisper Small "
-        "conditioned on token priors maintains high word-error-rate resilience; (2) <i>Zero-Downtime Failover:</i> SQLite fallback shields visitors "
-        "from Neo4j network drops; (3) <i>Cache Immutability:</i> SPARQL results are cached atomically to eliminate partial-write corruptions; "
-        "and (4) <i>Title Polysemy:</i> Shortened titles ('Flagellation', 'Ursula') are resolved by intersecting active discourse state with location cues.",
-        body_style,
+    # ---------- 13. Manual testing ----------
+    story.append(P("13. Manual Testing Beyond the Automated Suite", h1))
+    story.append(P(
+        "To get a more honest sense of robustness, I ran a separate batch of hand-written conversations "
+        "that were not part of the stress suite: misspelled artist names (\"karavaggio\"), casing and "
+        "whitespace noise, empty and nonsense input, a dialogue reset mid-conversation, and an "
+        "inconsistency injected partway through an otherwise normal five-turn conversation rather than "
+        "as a standalone question. All of these were handled without errors, and the fallback message "
+        "(\"I could not identify a specific artwork, artist, or venue...\") appeared correctly for "
+        "genuinely unparseable input rather than crashing or returning a blank response. The one gap "
+        "found — a title with no spaces between words at all, e.g. a typo collapsing \"at the\" into "
+        "one token — is an unrealistic edge case rather than something a real user or ASR system would "
+        "plausibly produce, and is consistent with the keyword-matching approach described in Section 7.",
+        body,
+    ))
+    story.append(P(
+        "<b>Adversarial testing of the inconsistency detector.</b> The 150-case stress suite scores a "
+        "perfect 100%, but I wrote both the rules and the test cases, phrased in the style the rules "
+        "expect — so a clean score there mostly proves internal consistency, not real-world robustness. "
+        "To get past that, I wrote ten new queries deliberately aimed at the matching logic's blind "
+        "spots rather than its happy path, and found three genuine bugs. First, asking about "
+        "\"Michelangelo Merisi da Caravaggio\" — Caravaggio's actual full birth name — was flagged as an "
+        "out-of-scope artist, because the out-of-scope check matched the bare word \"Michelangelo\" "
+        "without checking for \"Merisi\" alongside it. Second, disambiguation questions phrased with "
+        "\"which\" (\"Which painter, Caravaggio or Battistello, made the Seven Works of Mercy?\") were "
+        "incorrectly flagged as false claims, because the existing exception for this pattern only "
+        "recognized the word \"who,\" not \"which.\" Third, and most interesting, the detector had no "
+        "concept of negation at all: \"Caravaggio did not paint the Liberation of Saint Peter, correct?\" "
+        "— a statement that is actually true — was flagged as an error, while \"the Seven Works of Mercy "
+        "is NOT by Caravaggio\" — a statement that is actually false — was missed entirely. I fixed all "
+        "three in <font face='Courier'>src/dialogue/inconsistency.py</font>: an explicit carve-out for "
+        "\"Merisi,\" broadening the disambiguation exception to cover \"which\" as well as \"who,\" and a "
+        "small negation-window check that looks a few words before and after an artist's name for "
+        "\"not,\" \"didn't,\" \"never,\" and similar markers before deciding whether a mention is a claim "
+        "or a correct denial. I added six regression tests for these exact cases to "
+        "<font face='Courier'>tests/test_inconsistency.py</font>; the full suite, including the original "
+        "150-case benchmark, still passes with no regressions after the fix.",
+        body,
     ))
 
-    story.append(Paragraph("14. Conclusion & Strategic Research Trajectories", h1_style))
-    story.append(Paragraph(
-        "This monograph establishes that domain-specific conversational systems achieve deterministic factual fidelity when grounded in "
-        "semantic web knowledge graphs. By integrating live DBpedia SPARQL ingestion, dual graph persistence (Neo4j and SQLite), real-time "
-        "contradiction reasoning, phonetically conditioned speech recognition, and soft curatorial natural language generation, the system "
-        "delivers an authoritative, scholarly, and natural conversational guide for the cultural heritage of Naples.<br/>"
-        "Strategic engineering trajectories include: (1) quantizing Whisper small to INT8/4-bit GGUF models for local NPU execution on low-power museum kiosks; "
-        "(2) integrating Vision-Language Models (VLM) for real-time camera-based canvas inspection; and (3) expanding the ontological schema "
-        "to incorporate subsequent Neapolitan Baroque masters including Jusepe de Ribera, Artemisia Gentileschi, Massimo Stanzione, and Luca Giordano.",
-        body_style,
+    # ---------- 14. Limitations ----------
+    story.append(P("14. Limitations", h1))
+    story.append(P("• <b>Fixed, small catalog.</b> Eight artworks and five venues are enough to demonstrate the approach, but the keyword-based entity matching would need to be rethought before scaling to hundreds of works, where title collisions and partial-string matches become more likely.", bullet))
+    story.append(P("• <b>Rule-based, not statistical, matching.</b> Both entity extraction and inconsistency detection rely on string matching and regular expressions rather than embeddings or a trained classifier. This makes behavior predictable and easy to debug, but it means paraphrases the rules don't anticipate will be missed rather than approximately understood.", bullet))
+    story.append(P("• <b>Single in-memory session.</b> Dialogue state lives in the running process and resets when the app restarts; there is no persistence of conversation history across sessions or users.", bullet))
+    story.append(P("• <b>No generative language model.</b> Responses are built from structured templates filled in with graph data, not generated by an LLM. This was a deliberate choice for factual reliability — see Section 1 — but it does mean phrasing is less varied than a generative system would produce.", bullet))
+    story.append(P("• <b>DBpedia coverage gaps.</b> Not every fact needed (precise dimensions, street addresses) is reliably present in DBpedia for these specific entities, which is why the curated dataset exists alongside the SPARQL client rather than replacing it.", bullet))
+
+    # ---------- 15. Future work ----------
+    story.append(P("15. Possible Extensions", h1))
+    story.append(P(
+        "A few directions were considered but left out of scope for this delivery, either because the "
+        "course requirements did not call for them or because they would have meaningfully widened the "
+        "project beyond what could be properly tested in the time available:",
+        body,
+    ))
+    story.append(P("• <b>Larger catalog.</b> I was given the option of extending the project to other artists or cities; the architecture (SPARQL ingestion → dual graph store → rule-based dialogue) would carry over, but the entity-matching rules in Sections 6–7 would need to move toward fuzzy or embedding-based matching once title collisions become likely across a bigger catalog.", bullet))
+    story.append(P("• <b>Persistent, multi-user sessions.</b> Right now dialogue state lives in one process's memory. Saving state per browser session (Streamlit's <font face='Courier'>session_state</font>, or a lightweight database row keyed by session id) would let multiple visitors use the deployed app concurrently without stepping on each other's conversation history.", bullet))
+    story.append(P("• <b>A statistical fallback for entity matching.</b> For queries that don't match any keyword pattern, a small sentence-embedding similarity search over artwork descriptions could catch paraphrases the rules miss, while keeping the rule-based path as the primary, auditable mechanism — a hybrid rather than a wholesale replacement.", bullet))
+
+    story.append(Spacer(1, 6))
+
+    # ---------- 16. Reproducing the results ----------
+    story.append(P("16. Reproducing These Results", h1))
+    story.append(P(
+        "All commands below assume a Python 3.10+ virtual environment with "
+        "<font face='Courier'>requirements.txt</font> installed.",
+        body,
+    ))
+    story.append(code(
+        "python3 -m venv .venv && source .venv/bin/activate\n"
+        "pip install -r requirements.txt\n\n"
+        "# Build the knowledge graph from DBpedia (falls back to SQLite\n"
+        "# automatically if no Neo4j instance is reachable on bolt://localhost:7687)\n"
+        "python scripts/build_graph.py\n\n"
+        "# Run the automated test suites\n"
+        "pytest tests/\n"
+        "python tests/stress_test_150.py\n\n"
+        "# Launch the web app, or the terminal CLI\n"
+        "streamlit run app.py --server.port 8502\n"
+        "python scripts/interactive_cli.py"
+    ))
+    story.append(P(
+        "To run against a real Neo4j instance rather than the SQLite fallback — as was done for "
+        "Section 5 of this report — start a Neo4j 5.x server reachable at "
+        "<font face='Courier'>bolt://localhost:7687</font> with the credentials in "
+        "<font face='Courier'>config/settings.py</font> (user <font face='Courier'>neo4j</font>, "
+        "password <font face='Courier'>password</font> by default) before running "
+        "<font face='Courier'>build_graph.py</font>; the script will report "
+        "<font face='Courier'>Active backend: NEO4J</font> once connected.",
+        body,
     ))
 
-    # Build the document
-    doc.build(story, canvasmaker=AcademicNumberedCanvas)
-    print(f"Academic Research Monograph successfully generated at: {output_path}")
+    # ---------- 17. Tools and technologies ----------
+    story.append(P("17. Tools and Technologies", h1))
+    story.append(P(
+        "A quick inventory of what I actually built this with, and why each piece is there. Everything "
+        "below is pinned in <font face='Courier'>requirements.txt</font> unless noted otherwise.",
+        body,
+    ))
+
+    story.append(P("<b>Language and data models.</b> Python 3.11. I used Pydantic throughout "
+        "(<font face='Courier'>ChatbotTurnResult</font>, <font face='Courier'>InconsistencyReport</font>, "
+        "<font face='Courier'>DialogueState</font>, the app config) instead of passing raw dicts around — "
+        "it validates types at construction time and gives every module a documented shape to pass data in.",
+        body,
+    ))
+    story.append(P("<b>Knowledge source and graph.</b> DBpedia is the data source — structured facts "
+        "extracted from Wikipedia, reachable over a public SPARQL endpoint. "
+        "<font face='Courier'>SPARQLWrapper</font> is the Python library I used to build and send those "
+        "SPARQL queries and parse the JSON bindings that come back. For storage, "
+        "<font face='Courier'>neo4j</font> (the official Python driver) talks to a real Neo4j 5.x server "
+        "over Bolt, which is the required backend; Python's built-in <font face='Courier'>sqlite3</font> "
+        "module backs the embedded fallback store with the same node/edge schema.",
+        body,
+    ))
+    story.append(P("<b>Speech.</b> <font face='Courier'>openai-whisper</font> runs ASR locally (the "
+        "<font face='Courier'>small</font> checkpoint). <font face='Courier'>soundfile</font> and "
+        "<font face='Courier'>scipy.signal.resample</font> handle loading and resampling audio to 16 kHz "
+        "before it reaches Whisper. For speech output, <font face='Courier'>edge-tts</font> calls "
+        "Microsoft's neural voices over the network, with <font face='Courier'>pyttsx3</font> as an "
+        "offline fallback that drives the host operating system's own synthesizer. One honest note: "
+        "<font face='Courier'>sounddevice</font> is listed in requirements.txt from an earlier draft "
+        "but isn't imported anywhere in the final code — microphone capture goes through Streamlit's "
+        "browser-based <font face='Courier'>st.audio_input</font> instead, so that dependency is unused.",
+        body,
+    ))
+    story.append(P("<b>Interface and testing.</b> <font face='Courier'>streamlit</font> is the whole web "
+        "app — I didn't reach for a separate frontend framework since Streamlit's Python-only model fit a "
+        "single-page demo well. <font face='Courier'>pytest</font> runs the unit test suite.",
+        body,
+    ))
+    story.append(P("<b>Building this report and its diagram.</b> Outside the chatbot itself, "
+        "<font face='Courier'>reportlab</font> generates this PDF programmatically from a Python script "
+        "(<font face='Courier'>scripts/generate_pdf_report.py</font>) rather than a word processor, so the "
+        "whole report rebuilds from source whenever the project changes. "
+        "<font face='Courier'>graphviz</font> renders Figure 1's pipeline diagram the same way. I also "
+        "used Docker once, outside the normal dependency list, to run a real Neo4j 5.15 container "
+        "specifically to verify the Neo4j backend described in Section 5 — not something the system "
+        "needs at runtime, just something I needed for honest verification.",
+        body,
+    ))
+
+    story.append(PageBreak())
+
+    # ---------- 18. References ----------
+    story.append(P("18. References", h1))
+    ref_items = [
+        "Jurafsky, D. and J. H. Martin. Speech and Language Processing (3rd ed. draft). Course reference "
+        "textbook; chapters 15-17 (phonetics/feature extraction, ASR, TTS) inform the speech pipeline and "
+        "the Word Error Rate evaluation in Section 8.",
+        "DBpedia — structured data extracted from Wikipedia, queried here via the public SPARQL endpoint at dbpedia.org/sparql.",
+        "Radford, A. et al. (2023). Robust Speech Recognition via Large-Scale Weak Supervision (Whisper). ICML.",
+        "Neo4j Graph Database — property graph store and the Cypher query language, used as the primary knowledge graph backend.",
+        "Microsoft Edge-TTS — neural text-to-speech voices used for the system's spoken output (en-GB-RyanNeural).",
+        "Streamlit — Python web app framework used for the project's user interface.",
+    ]
+    for r in ref_items:
+        story.append(P("• " + r, bullet))
+
+    story.append(Spacer(1, 10))
+
+    # ---------- 19. Conclusion ----------
+    story.append(P("19. Conclusion", h1))
+    story.append(P(
+        "I believe the system meets the requirements I was given: it accepts voice or text input, "
+        "answers questions about Caravaggio and Battistello Caracciolo's works in Naples using facts "
+        "drawn from DBpedia and stored in Neo4j, catches factual inconsistencies in what the user "
+        "claims, and keeps track of what has been discussed across a conversation. The design choices I "
+        "made throughout — rule-based detection over a trained classifier, template-based generation "
+        "over an LLM, a dual graph backend for development convenience — were made for reasons specific "
+        "to this domain's small size and its need for strict factual correctness, and I wrote the "
+        "limitations section above to make those trade-offs explicit rather than leave them implied.",
+        body,
+    ))
+    story.append(P(
+        "I'm submitting the codebase, the automated tests, and this report together as my deliverable "
+        "for the course.",
+        body,
+    ))
+
+    doc.build(story, canvasmaker=NumberedCanvas)
 
 
 if __name__ == "__main__":
-    out = project_root / "docs" / "TECHNICAL_REPORT.pdf"
-    build_academic_monograph(out)
+    out = project_root / "TECHNICAL_REPORT.pdf"
+    build_report(out)
+    print(f"Report written to {out}")

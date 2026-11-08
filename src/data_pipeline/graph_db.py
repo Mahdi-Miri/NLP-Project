@@ -1,9 +1,3 @@
-"""
-Graph Database module for Neapolitan Artistic Heritage.
-Supports both Neo4j (via Cypher queries and official neo4j driver)
-and an embedded local SQLite graph engine for standalone execution.
-"""
-
 import json
 import logging
 import sqlite3
@@ -13,7 +7,6 @@ from config.settings import config
 
 logger = logging.getLogger(__name__)
 
-# Try importing neo4j driver
 try:
     from neo4j import GraphDatabase, Driver
     NEO4J_AVAILABLE = True
@@ -23,11 +16,6 @@ except ImportError:
 
 
 class Neo4jGraphStore:
-    """
-    Neo4j Graph Database implementation using Cypher queries.
-    Stores and queries Artists, Artworks, Locations, Cities, and Subjects.
-    """
-
     def __init__(
         self,
         uri: Optional[str] = None,
@@ -42,7 +30,6 @@ class Neo4jGraphStore:
         self._driver: Optional[Driver] = None
 
     def connect(self) -> bool:
-        """Verify Neo4j connectivity and initialize driver."""
         if not NEO4J_AVAILABLE:
             logger.warning("neo4j library is not installed.")
             return False
@@ -63,7 +50,6 @@ class Neo4jGraphStore:
             self._driver.close()
 
     def initialize_schema(self):
-        """Create uniqueness constraints in Neo4j."""
         if not self._driver:
             return
         constraints = [
@@ -80,20 +66,14 @@ class Neo4jGraphStore:
                     logger.debug("Constraint notice: %s", exc)
 
     def populate(self, corpus: Dict[str, Any]):
-        """
-        Load corpus into Neo4j via Cypher transactions.
-        Creates (:Artist)-[:PAINTED]->(:Artwork)-[:LOCATED_AT]->(:Location)-[:IN_CITY]->(:City).
-        """
         if not self._driver:
             raise ConnectionError("Neo4j driver is not connected.")
 
         self.initialize_schema()
 
         with self._driver.session(database=self.database) as session:
-            # Clear old Neapolitan graph data to avoid duplicates
             session.run("MATCH (n) DETACH DELETE n")
 
-            # 1. Create City
             session.run(
                 """
                 MERGE (c:City {name: 'Naples'})
@@ -102,7 +82,6 @@ class Neo4jGraphStore:
                 """
             )
 
-            # 2. Create Artists
             for artist_key, a_data in corpus.get("artists", {}).items():
                 session.run(
                     """
@@ -129,7 +108,6 @@ class Neo4jGraphStore:
                     abstract=a_data.get("dbpedia_abstract", ""),
                 )
 
-            # 3. Create Locations
             for venue in corpus.get("venues", []):
                 coords = venue.get("coordinates", {})
                 session.run(
@@ -156,7 +134,6 @@ class Neo4jGraphStore:
                     longitude=coords.get("longitude", 0.0),
                 )
 
-            # 4. Create Artworks and Relations
             for art in corpus.get("artworks", []):
                 session.run(
                     """
@@ -193,7 +170,6 @@ class Neo4jGraphStore:
                     location=art["location"],
                 )
 
-                # Connect subjects
                 for subject in art.get("subjects", []):
                     session.run(
                         """
@@ -209,7 +185,6 @@ class Neo4jGraphStore:
         logger.info("Successfully populated Neo4j graph database.")
 
     def run_cypher(self, query: str, parameters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        """Execute Cypher query and return results as list of dicts."""
         if not self._driver:
             raise ConnectionError("Neo4j driver not connected.")
         with self._driver.session(database=self.database) as session:
@@ -218,11 +193,6 @@ class Neo4jGraphStore:
 
 
 class LocalGraphStore:
-    """
-    Embedded SQLite Graph Store providing identical graph semantics
-    and Cypher-like traversals for standalone environments without Neo4j.
-    """
-
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = str(db_path or config.paths.local_db_path)
         self._init_db()
@@ -264,19 +234,16 @@ class LocalGraphStore:
             conn.commit()
 
     def populate(self, corpus: Dict[str, Any]):
-        """Populate local graph from corpus dict."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("DELETE FROM edges")
             cursor.execute("DELETE FROM nodes")
 
-            # 1. City
             cursor.execute(
                 "INSERT INTO nodes (id, label, properties) VALUES (?, ?, ?)",
                 ("city:Naples", "City", json.dumps({"name": "Naples", "country": "Italy"})),
             )
 
-            # 2. Artists
             for artist_name, a_data in corpus.get("artists", {}).items():
                 node_id = f"artist:{artist_name}"
                 props = dict(a_data)
@@ -286,7 +253,6 @@ class LocalGraphStore:
                     (node_id, "Artist", json.dumps(props)),
                 )
 
-            # 3. Locations
             for venue in corpus.get("venues", []):
                 loc_id = f"location:{venue['name']}"
                 cursor.execute(
@@ -298,7 +264,6 @@ class LocalGraphStore:
                     (loc_id, "city:Naples", "IN_CITY", json.dumps({})),
                 )
 
-            # 4. Artworks and Relations
             for art in corpus.get("artworks", []):
                 art_id = f"artwork:{art['title']}"
                 cursor.execute(
@@ -306,21 +271,18 @@ class LocalGraphStore:
                     (art_id, "Artwork", json.dumps(art)),
                 )
 
-                # Artist -> Artwork
                 artist_id = f"artist:{art['artist']}"
                 cursor.execute(
                     "INSERT INTO edges (source_id, target_id, relation, properties) VALUES (?, ?, ?, ?)",
                     (artist_id, art_id, "PAINTED", json.dumps({})),
                 )
 
-                # Artwork -> Location
                 loc_id = f"location:{art['location']}"
                 cursor.execute(
                     "INSERT INTO edges (source_id, target_id, relation, properties) VALUES (?, ?, ?, ?)",
                     (art_id, loc_id, "LOCATED_AT", json.dumps({})),
                 )
 
-                # Artwork -> Subjects
                 for sub in art.get("subjects", []):
                     sub_id = f"subject:{sub}"
                     cursor.execute(
@@ -336,7 +298,6 @@ class LocalGraphStore:
             logger.info("Local SQLite graph populated successfully.")
 
     def get_all_artworks(self) -> List[Dict[str, Any]]:
-        """Return all artworks with author and location."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -364,19 +325,16 @@ class LocalGraphStore:
             return results
 
     def get_artworks_by_artist(self, artist_name: str) -> List[Dict[str, Any]]:
-        """Get all artworks painted by a given artist."""
         all_arts = self.get_all_artworks()
         pattern = artist_name.lower()
         return [a for a in all_arts if pattern in a.get("artist", "").lower()]
 
     def get_artworks_by_location(self, location_name: str) -> List[Dict[str, Any]]:
-        """Get all artworks housed in a specific location."""
         all_arts = self.get_all_artworks()
         pattern = location_name.lower()
         return [a for a in all_arts if pattern in a.get("location", "").lower()]
 
     def get_artwork_by_title(self, title: str) -> Optional[Dict[str, Any]]:
-        """Lookup artwork by title (case-insensitive substring match)."""
         all_arts = self.get_all_artworks()
         title_lower = title.strip().lower()
         for a in all_arts:
@@ -387,7 +345,6 @@ class LocalGraphStore:
         return None
 
     def get_all_locations(self) -> List[Dict[str, Any]]:
-        """Return all location nodes with artwork counts."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT properties FROM nodes WHERE label = 'Location'")
@@ -400,7 +357,6 @@ class LocalGraphStore:
             return locs
 
     def get_all_artists(self) -> List[Dict[str, Any]]:
-        """Return all artist nodes with artwork lists."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT properties FROM nodes WHERE label = 'Artist'")
@@ -414,11 +370,6 @@ class LocalGraphStore:
 
 
 class NeapolitanArtGraph:
-    """
-    Unified Graph Interface.
-    Directs operations to Neo4j if available, or falls back to LocalGraphStore.
-    """
-
     def __init__(self, prefer_neo4j: bool = True):
         self.neo4j_store = Neo4jGraphStore()
         self.local_store = LocalGraphStore()
@@ -432,7 +383,6 @@ class NeapolitanArtGraph:
             logger.info("Using embedded SQLite graph engine.")
 
     def populate(self, corpus: Dict[str, Any]):
-        """Populate both stores to maintain synchronization."""
         self.local_store.populate(corpus)
         if self.active_backend == "neo4j" and self.neo4j_store._driver:
             try:

@@ -1,13 +1,3 @@
-"""
-Inconsistency Detection Engine for Neapolitan Art Dialogue System.
-Detects factual and contextual contradictions in user questions:
-- Artist attribution mismatches
-- Naples venue/location mismatches
-- Non-Neapolitan artwork inquiries (works in Rome, Florence, Paris)
-- Out-of-scope artists
-- Dialogue state contradictions
-"""
-
 import logging
 import re
 from enum import Enum
@@ -39,11 +29,6 @@ class InconsistencyReport(BaseModel):
 
 
 class InconsistencyDetector:
-    """
-    Rule-based and Graph-grounded Inconsistency Detector.
-    Validates user queries against DBpedia-backed ground truth graph.
-    """
-
     KNOWN_ARTISTS = ["caravaggio", "battistello", "battistello caracciolo", "caracciolo"]
     DISALLOWED_FAMOUS_ARTISTS = [
         "leonardo", "leonardo da vinci", "michelangelo", "michelangelo buonarroti",
@@ -60,33 +45,24 @@ class InconsistencyDetector:
         query: str,
         dialogue_state: Optional[Dict[str, Any]] = None,
     ) -> InconsistencyReport:
-        """
-        Main entry point for inconsistency detection.
-        Evaluates the query against artwork catalog, venues, and active dialogue state.
-        """
         q_lower = self._normalize_query_for_speech(query)
 
-        # 1. Check for Out-of-scope famous artists (e.g., Leonardo da Vinci)
         out_of_scope_match = self._check_out_of_scope_artist(q_lower)
         if out_of_scope_match:
             return out_of_scope_match
 
-        # 2. Check for Non-Neapolitan artworks claimed to be in Naples
         city_mismatch = self._check_non_neapolitan_artwork(q_lower)
         if city_mismatch:
             return city_mismatch
 
-        # 3. Check for Artist Attribution Mismatches
         artist_mismatch = self._check_artist_attribution(q_lower, dialogue_state)
         if artist_mismatch:
             return artist_mismatch
 
-        # 4. Check for Location / Venue Mismatches within Naples
         location_mismatch = self._check_location_venue(q_lower, dialogue_state)
         if location_mismatch:
             return location_mismatch
 
-        # 5. Check Contextual Contradictions against active state
         contextual_mismatch = self._check_contextual_state(q_lower, dialogue_state)
         if contextual_mismatch:
             return contextual_mismatch
@@ -94,7 +70,6 @@ class InconsistencyDetector:
         return InconsistencyReport(is_inconsistent=False)
 
     def _normalize_query_for_speech(self, query: str) -> str:
-        """Normalize common speech-to-text phonetic artifacts, numerals, and prepositions."""
         q = query.lower()
         q = re.sub(r"\b7\b", "seven", q)
         q = re.sub(r"\b1st\b", "first", q)
@@ -111,6 +86,8 @@ class InconsistencyDetector:
 
     def _check_out_of_scope_artist(self, query: str) -> Optional[InconsistencyReport]:
         for artist in self.DISALLOWED_FAMOUS_ARTISTS:
+            if artist == "michelangelo" and "merisi" in query:
+                continue
             pattern = r"\b" + re.escape(artist) + r"\b"
             if re.search(pattern, query):
                 return InconsistencyReport(
@@ -147,7 +124,6 @@ class InconsistencyDetector:
             title_lower = art["title"].lower()
             title_no_the = title_lower[4:] if title_lower.startswith("the ") else title_lower
             it_title = art.get("italian_title", "").lower()
-            # Match title in query or pronouns if state has this artwork
             title_matched = (title_lower in query) or (title_no_the in query) or (bool(it_title) and it_title in query)
             if not title_matched and dialogue_state:
                 active_art = dialogue_state.get("active_artwork")
@@ -159,13 +135,19 @@ class InconsistencyDetector:
                 true_artist = art["artist"]
                 other_artist = "Battistello Caracciolo" if true_artist == "Caravaggio" else "Caravaggio"
 
-                # Check if query falsely attributes this work to the other artist (including phonetic variations)
-                other_terms = ["caravaggio", "caravagio", "karavaggio"] if true_artist != "Caravaggio" else ["battistello", "batistello", "caracciolo", "caraciolo"]
+                caravaggio_terms = ["caravaggio", "caravagio", "karavaggio"]
+                battistello_terms = ["battistello", "batistello", "caracciolo", "caraciolo"]
+                other_terms = caravaggio_terms if true_artist != "Caravaggio" else battistello_terms
+                true_terms = battistello_terms if true_artist != "Caravaggio" else caravaggio_terms
+
                 for term in other_terms:
                     pattern = r"\b" + re.escape(term) + r"\b"
                     if re.search(pattern, query):
-                        # Verify user is not explicitly asking for clarification (e.g. "Did Caravaggio paint this or Battistello?")
-                        if " or " in query and "who" in query:
+                        # "X or Y, who/which...?" is a clarification question, not a claim.
+                        if " or " in query and ("who" in query or "which" in query):
+                            continue
+                        # "X did NOT paint it" (X = wrong artist) is a correct statement.
+                        if self._is_negated_before(query, pattern):
                             continue
 
                         return InconsistencyReport(
@@ -176,7 +158,29 @@ class InconsistencyDetector:
                             claimed_entity=f"Artist: {other_artist}",
                             ground_truth_entity=f"Artist: {true_artist}",
                         )
+
+                for term in true_terms:
+                    pattern = r"\b" + re.escape(term) + r"\b"
+                    if re.search(pattern, query) and self._is_negated_before(query, pattern):
+                        # "X did NOT paint it" (X = true artist) is an incorrect claim.
+                        return InconsistencyReport(
+                            is_inconsistent=True,
+                            inconsistency_type=InconsistencyType.ARTIST_MISMATCH,
+                            explanation=f"'{art['title']}' was in fact created by {true_artist}.",
+                            suggested_correction=f"{true_artist} painted '{art['title']}' around {art.get('year', 'the early 17th century')}.",
+                            claimed_entity=f"Artist: not {true_artist}",
+                            ground_truth_entity=f"Artist: {true_artist}",
+                        )
         return None
+
+    def _is_negated_before(self, query: str, term_pattern: str) -> bool:
+        match = re.search(term_pattern, query)
+        if not match:
+            return False
+        before = query[: match.start()].split()[-5:]
+        after = query[match.end():].split()[:5]
+        window = " ".join(before + after)
+        return bool(re.search(r"\b(?:not|n't|never|isn't|wasn't|didn't|doesn't)\b", window))
 
     def _check_location_venue(
         self, query: str, dialogue_state: Optional[Dict[str, Any]]
@@ -199,9 +203,7 @@ class InconsistencyDetector:
                 true_loc = art["location"]
                 for venue in venues:
                     venue_name = venue["name"]
-                    # If venue is different from the true location
                     if venue_name.lower() != true_loc.lower():
-                        # Check venue keywords
                         keywords = self._get_venue_keywords(venue_name)
                         for kw in keywords:
                             pattern = r"\b" + re.escape(kw) + r"\b"
@@ -226,10 +228,8 @@ class InconsistencyDetector:
         active_artist = dialogue_state.get("active_artist")
 
         if active_artwork and active_artist:
-            # If current active artwork belongs to Caravaggio and user references Battistello with "he" or "his"
             true_artist = active_artwork.get("artist")
             if true_artist == "Caravaggio" and ("battistello" in query or "caracciolo" in query) and "instead" not in query:
-                # Check if user is assuming the current active piece was his
                 if "his other work" in query or "did he also paint" in query:
                     return InconsistencyReport(
                         is_inconsistent=True,
@@ -256,7 +256,6 @@ class InconsistencyDetector:
         return [name_lower]
 
     def _has_artwork_pronoun(self, query: str) -> bool:
-        """Check if query contains genuine artwork pronouns using word boundaries."""
         patterns = [
             r"\b(it|its|this|that)\b",
             r"\b(this|that|the)\s+(work|painting|canvas|piece|masterpiece)\b",

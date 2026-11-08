@@ -1,7 +1,3 @@
-"""
-Unit tests for Dialogue Management and Multi-turn State Tracking.
-"""
-
 import pytest
 from src.dialogue.chatbot import NeapolitanArtChatbot
 
@@ -20,9 +16,7 @@ def test_single_turn_artwork_inquiry(bot):
 
 
 def test_multi_turn_coreference(bot):
-    # Turn 1: Establish artwork
     bot.process_utterance("Where can I find The Seven Works of Mercy?")
-    # Turn 2: Ask using pronoun 'it'
     res2 = bot.process_utterance("Who painted it?")
     assert "Caravaggio" in res2.system_response
     assert res2.active_artwork == "The Seven Works of Mercy"

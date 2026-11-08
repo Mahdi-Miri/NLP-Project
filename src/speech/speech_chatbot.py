@@ -1,8 +1,3 @@
-"""
-Unified Speech Chatbot pipeline for Neapolitan Artistic Heritage.
-Integrates Whisper ASR, Graph-Grounded Dialogue Management, and TTS output.
-"""
-
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
@@ -29,11 +24,6 @@ class SpeechTurnResult(BaseModel):
 
 
 class NeapolitanSpeechChatbot:
-    """
-    End-to-end multimodal speech chatbot supporting voice input,
-    graph reasoning with contradiction detection, and spoken responses.
-    """
-
     def __init__(
         self,
         chatbot: Optional[NeapolitanArtChatbot] = None,
@@ -47,10 +37,6 @@ class NeapolitanSpeechChatbot:
     def process_voice_turn(
         self, audio_source: Union[str, Path, bytes, np.ndarray], generate_speech: bool = True
     ) -> SpeechTurnResult:
-        """
-        Process speech input: transcribe -> query dialogue engine -> synthesize speech output.
-        """
-        # Step 1: Speech-to-Text
         transcript, language = self.asr.transcribe(audio_source)
         if not transcript.strip():
             fallback_text = "I could not hear or transcribe any voice input. Please try speaking again."
@@ -63,10 +49,8 @@ class NeapolitanSpeechChatbot:
                 inconsistency_report=InconsistencyReport(is_inconsistent=False),
             )
 
-        # Step 2: Dialogue & Inconsistency Reasoning
         dialogue_result = self.chatbot.process_utterance(transcript)
 
-        # Step 3: Text-to-Speech
         audio_path = None
         if generate_speech:
             audio_path = self.tts.synthesize_to_file(dialogue_result.system_response)
@@ -85,9 +69,6 @@ class NeapolitanSpeechChatbot:
     def process_text_turn(
         self, text_input: str, generate_speech: bool = True
     ) -> SpeechTurnResult:
-        """
-        Process text input with optional voice output synthesis.
-        """
         dialogue_result = self.chatbot.process_utterance(text_input)
         audio_path = None
         if generate_speech:
@@ -105,5 +86,4 @@ class NeapolitanSpeechChatbot:
         )
 
     def reset(self):
-        """Reset conversation context."""
         self.chatbot.reset_dialogue()

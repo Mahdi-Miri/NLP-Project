@@ -1,8 +1,3 @@
-"""
-Audio utility functions for speech input/output processing.
-Handles conversion, resampling, and format normalization for ASR and TTS.
-"""
-
 import io
 import logging
 import tempfile
@@ -16,10 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 def load_and_normalize_audio(file_path_or_bytes: Any, target_sr: int = 16000) -> Tuple[np.ndarray, int]:
-    """
-    Load an audio file or bytes buffer, convert to mono float32, and resample to target_sr.
-    Safe against format mismatches and guarantees valid ndarray output.
-    """
     try:
         if isinstance(file_path_or_bytes, (str, Path)):
             data, sample_rate = sf.read(str(file_path_or_bytes), dtype="float32")
@@ -29,17 +20,17 @@ def load_and_normalize_audio(file_path_or_bytes: Any, target_sr: int = 16000) ->
         else:
             raise ValueError(f"Unsupported audio input type: {type(file_path_or_bytes)}")
 
-        # Convert multi-channel to mono
         if len(data.shape) > 1:
             data = np.mean(data, axis=1)
 
-        # Resample if needed
         if sample_rate != target_sr:
             num_target_samples = int(len(data) * float(target_sr) / sample_rate)
             data = resample(data, num_target_samples).astype(np.float32)
             sample_rate = target_sr
 
-        # Peak normalization to maximize SNR for accented / quiet microphone input
+        # Zero-center then peak-normalize, matching the 0-mean, [-1, 1] range
+        # Whisper applies internally to its log-mel input.
+        data = data - np.mean(data)
         max_amplitude = np.max(np.abs(data))
         if max_amplitude > 1e-4:
             data = (data / max_amplitude * 0.95).astype(np.float32)
@@ -48,7 +39,6 @@ def load_and_normalize_audio(file_path_or_bytes: Any, target_sr: int = 16000) ->
 
     except Exception as exc:
         logger.error("Failed to load and normalize audio: %s", exc)
-        # Return fallback silent audio array of 1 second to prevent local variable crashes
         return np.zeros(target_sr, dtype=np.float32), target_sr
 
 

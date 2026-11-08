@@ -1,9 +1,3 @@
-"""
-Conversational Chatbot Engine for Neapolitan Artistic Heritage.
-Combines Knowledge Graph queries, Inconsistency Detection, and Dialogue State Tracking.
-Adheres strictly to academic standards: zero marketing buzzwords, clean humanized English.
-"""
-
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -27,20 +21,12 @@ class ChatbotTurnResult(BaseModel):
 
 
 class NeapolitanArtChatbot:
-    """
-    Dialogue manager for cultural tourism and scholarly exploration of
-    Caravaggio and Battistello Caracciolo works in Naples.
-    """
-
     def __init__(self, graph: Optional[NeapolitanArtGraph] = None):
         self.graph = graph or NeapolitanArtGraph()
         self.detector = InconsistencyDetector(self.graph)
         self.tracker = DialogueStateTracker()
 
     def process_utterance(self, utterance: str) -> ChatbotTurnResult:
-        """
-        Process a single conversational turn from text input.
-        """
         clean_utterance = utterance.strip()
         state = self.tracker.get_state()
         state_dict = {
@@ -49,10 +35,8 @@ class NeapolitanArtChatbot:
             "active_location": state.active_location,
         }
 
-        # Step 1: Detect inconsistencies
         inconsistency = self.detector.detect_inconsistencies(clean_utterance, state_dict)
 
-        # Step 2: Handle inconsistency if present
         if inconsistency.is_inconsistent:
             response_text = self._format_inconsistency_response(inconsistency)
             self.tracker.update_with_turn(
@@ -69,15 +53,12 @@ class NeapolitanArtChatbot:
                 active_location=state.active_location.get("name") if state.active_location else None,
             )
 
-        # Step 3: Check for anaphora / coreference resolution
         anaphora = self.tracker.resolve_anaphora(clean_utterance)
 
-        # Step 4: Extract entities from query
         identified_artwork = self._extract_artwork(clean_utterance) or anaphora.get("artwork")
         identified_artist = self._extract_artist(clean_utterance) or anaphora.get("artist")
         identified_location = self._extract_location(clean_utterance) or anaphora.get("location")
 
-        # Step 5: Formulate knowledge-grounded response
         response_text, context_items = self._generate_response(
             utterance=clean_utterance,
             artwork=identified_artwork,
@@ -85,7 +66,6 @@ class NeapolitanArtChatbot:
             location=identified_location,
         )
 
-        # Step 6: Commit state update
         self.tracker.update_with_turn(
             user_utterance=clean_utterance,
             system_response=response_text,
@@ -107,36 +87,29 @@ class NeapolitanArtChatbot:
         )
 
     def _format_inconsistency_response(self, inc: InconsistencyReport) -> str:
-        """Construct natural, polite corrective guidance for detected contradictions."""
         if inc.explanation and inc.suggested_correction:
             return f"To clarify, {inc.explanation} {inc.suggested_correction}"
         return inc.explanation or inc.suggested_correction or "I noticed an inconsistency in that statement."
 
     def _normalize_query_for_speech(self, query: str) -> str:
-        """Normalize common speech-to-text phonetic artifacts, numerals, and prepositions."""
         q = query.lower()
-        # Normalize digits to words
         q = re.sub(r"\b7\b", "seven", q)
         q = re.sub(r"\b1st\b", "first", q)
         q = re.sub(r"\b2nd\b", "second", q)
-        # Normalize preposition variations in artwork titles (e.g. 'for' instead of 'of')
         q = re.sub(r"\bseven\s+works\s+(?:of|for|on)\s+mercy\b", "seven works of mercy", q)
         q = re.sub(r"\bliberation\s+(?:of|for)\s+(?:saint\s+|st\.?\s+)?peter\b", "liberation of saint peter", q)
         q = re.sub(r"\bwashing\s+(?:of|for)\s+(?:the\s+)?feet\b", "washing of the feet", q)
         q = re.sub(r"\bflagellation\s+(?:of|for)\s+christ\b", "flagellation of christ", q)
         q = re.sub(r"\bmartyrdom\s+(?:of|for)\s+(?:saint\s+|st\.?\s+)?ursula\b", "martyrdom of saint ursula", q)
-        # Normalize common accent & venue variations
         q = re.sub(r"\bcapo\s+di\s+monte\b", "capodimonte", q)
         q = re.sub(r"\bpio\s+monti\b", "pio monte", q)
         q = re.sub(r"\bst\.?\s+", "saint ", q)
         return q
 
     def _extract_artwork(self, query: str) -> Optional[Dict[str, Any]]:
-        """Identify referenced artwork from the graph with accent-robust fuzzy matching."""
         all_arts = self.graph.get_all_artworks()
         q_norm = self._normalize_query_for_speech(query)
 
-        # 1. Direct title check (both with and without leading 'the ')
         for art in all_arts:
             t_lower = art["title"].lower()
             t_no_the = t_lower[4:] if t_lower.startswith("the ") else t_lower
@@ -145,7 +118,6 @@ class NeapolitanArtChatbot:
             if art.get("italian_title") and art["italian_title"].lower() in q_norm:
                 return art
 
-        # 2. Fuzzy partial title check with accented variants (lowercase keys)
         title_keywords = {
             "the seven works of mercy": ["seven works", "works of mercy", "works for mercy", "mercy", "sette opere"],
             "the flagellation of christ": ["flagellation", "flagelation", "flagellazione", "flagellating"],
@@ -165,7 +137,6 @@ class NeapolitanArtChatbot:
         return None
 
     def _extract_artist(self, query: str) -> Optional[str]:
-        """Identify referenced artist with support for phonetic accent variations."""
         q_norm = self._normalize_query_for_speech(query)
         caravaggio_variants = ["caravaggio", "caravagio", "karavaggio", "caravaccho", "caravashio", "merisi"]
         battistello_variants = ["battistello", "batistello", "caracciolo", "caraciolo", "battistelli"]
@@ -173,7 +144,6 @@ class NeapolitanArtChatbot:
         has_caravaggio = any(v in q_norm for v in caravaggio_variants)
         has_battistello = any(v in q_norm for v in battistello_variants)
 
-        # If user asks for an overview or mentions both artists simultaneously
         if has_caravaggio and has_battistello:
             return None
         if has_battistello:
@@ -183,7 +153,6 @@ class NeapolitanArtChatbot:
         return None
 
     def _extract_location(self, query: str) -> Optional[Dict[str, Any]]:
-        """Identify referenced location or museum with support for accent and speech variants."""
         q_norm = self._normalize_query_for_speech(query)
         locations = self.graph.get_all_locations()
 
@@ -191,7 +160,6 @@ class NeapolitanArtChatbot:
             name_lower = loc["name"].lower()
             if name_lower in q_norm:
                 return loc
-            # Keyword and speech variations
             if ("pio monte" in q_norm or "piomonte" in q_norm or "pio monti" in q_norm) and "pio monte" in name_lower:
                 return loc
             if ("capodimonte" in q_norm or "capo di monte" in q_norm) and "capodimonte" in name_lower:
@@ -212,13 +180,9 @@ class NeapolitanArtChatbot:
         artist: Optional[str],
         location: Optional[Dict[str, Any]],
     ) -> (str, List[Dict[str, Any]]):
-        """
-        Formulate informative natural language response based on identified entities.
-        """
         u_lower = utterance.lower()
         context_items: List[Dict[str, Any]] = []
 
-        # Case 1: Specific artwork is identified
         if artwork:
             context_items.append(artwork)
             addr = artwork.get("address") or artwork.get("location_details", {}).get("address", "Naples, Italy")
@@ -228,7 +192,6 @@ class NeapolitanArtChatbot:
             desc = artwork.get("description", "")
             loc = artwork.get("location", "Naples")
 
-            # Question about where to see it
             if any(w in u_lower for w in ["where", "location", "address", "visit", "venue", "how to see", "find"]):
                 resp = (
                     f"'{artwork['title']}' by {artwork['artist']} is permanently preserved at "
@@ -237,7 +200,6 @@ class NeapolitanArtChatbot:
                 )
                 return resp, context_items
 
-            # Question about who painted it
             if any(w in u_lower for w in ["who painted", "who is the artist", "author", "creator", "painter"]):
                 resp = (
                     f"'{artwork['title']}' was created by {artwork['artist']} in {yr}. "
@@ -245,7 +207,6 @@ class NeapolitanArtChatbot:
                 )
                 return resp, context_items
 
-            # Question about dimensions or medium
             if any(w in u_lower for w in ["dimension", "size", "measure", "height", "width", "medium", "canvas"]):
                 resp = (
                     f"'{artwork['title']}' is executed in {med} on a monumental scale measuring {dims}. "
@@ -253,7 +214,6 @@ class NeapolitanArtChatbot:
                 )
                 return resp, context_items
 
-            # Question about significance, meaning, or history
             if any(w in u_lower for w in ["significance", "meaning", "importance", "history", "about this", "context"]):
                 resp = (
                     f"Regarding '{artwork['title']}', {desc} "
@@ -261,7 +221,6 @@ class NeapolitanArtChatbot:
                 )
                 return resp, context_items
 
-            # Question about completion year or date
             if any(w in u_lower for w in ["year", "when", "date", "period", "completed"]):
                 resp = (
                     f"'{artwork['title']}' was completed by {artwork.get('artist')} in {yr}. "
@@ -269,7 +228,6 @@ class NeapolitanArtChatbot:
                 )
                 return resp, context_items
 
-            # General artwork inquiry
             abstract_snippet = artwork.get("dbpedia_abstract")
             lead_in = (
                 f"'{artwork['title']}' is a masterpiece by {artwork['artist']}, created in {yr}. "
@@ -283,7 +241,6 @@ class NeapolitanArtChatbot:
                 paragraphs.append(f"Scholarly records note: {abstract_snippet[:220].rstrip()}...")
             return "\n\n".join(paragraphs), context_items
 
-        # Case 2: Specific location / museum is identified
         if location:
             context_items.append(location)
             loc_name = location["name"]
@@ -308,7 +265,6 @@ class NeapolitanArtChatbot:
 
             return "\n\n".join(paragraphs), context_items
 
-        # Case 3: Specific artist is identified
         if artist:
             artworks_by_artist = self.graph.get_artworks_by_artist(artist)
             context_items.extend(artworks_by_artist)
@@ -358,7 +314,6 @@ class NeapolitanArtChatbot:
             paragraphs.append("Feel free to ask about any of these paintings, their locations, dimensions, or iconography.")
             return "\n\n".join(paragraphs), context_items
 
-        # Case 4: General greeting or overview of the project
         if any(w in u_lower for w in ["hello", "hi", "help", "guide", "overview", "what can you do", "intro"]):
             all_arts = self.graph.get_all_artworks()
             caravaggio_count = len([a for a in all_arts if a["artist"] == "Caravaggio"])
@@ -376,7 +331,6 @@ class NeapolitanArtChatbot:
                 f"You can ask about specific paintings, artist biographies, museum locations, or historical context."
             ), []
 
-        # Fallback guidance
         return (
             "I could not identify a specific artwork, artist, or venue from your question. "
             "You can ask about works by Caravaggio (such as 'The Seven Works of Mercy' or 'The Flagellation of Christ') "
@@ -385,5 +339,4 @@ class NeapolitanArtChatbot:
         ), []
 
     def reset_dialogue(self):
-        """Reset conversational context and memory."""
         self.tracker.reset()

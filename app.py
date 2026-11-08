@@ -1,17 +1,9 @@
-"""
-Neapolitan Artistic Heritage Speech Dialogue System.
-Web Application for Natural Language Processing.
-Focus: Works by Caravaggio and Battistello Caracciolo visitable in Naples.
-Foundational Knowledge: DBpedia SPARQL queries loaded into Graph Database.
-"""
-
 import os
 import sys
 import tempfile
 from pathlib import Path
 import streamlit as st
 
-# Ensure project root is in path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from config.settings import config
@@ -23,7 +15,6 @@ from src.speech.speech_chatbot import NeapolitanSpeechChatbot
 from src.speech.asr import SpeechRecognizer
 from src.speech.tts import TextToSpeechSynthesizer
 
-# Streamlit Page Setup
 st.set_page_config(
     page_title="Neapolitan Art Dialogue System | Caravaggio & Caracciolo",
     page_icon=None,
@@ -31,23 +22,20 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Custom Light-Theme CSS (Strict Light Mode, OS Dark Mode override, no emojis, clean academic styling)
 st.markdown(
     """
     <style>
-    /* 1. Global Strict Light Mode Enforcer */
     :root {
         color-scheme: light !important;
     }
-    
+
     html, body, .stApp, [data-testid="stAppViewContainer"], .main {
         background-color: #fcfcfd !important;
         color: #0f172a !important;
         color-scheme: light !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
-    
-    /* 2. OS Dark Mode Override - Never allow dark backgrounds */
+
     @media (prefers-color-scheme: dark) {
         :root, html, body, .stApp, [data-testid="stAppViewContainer"], .main {
             background-color: #fcfcfd !important;
@@ -67,7 +55,6 @@ st.markdown(
         }
     }
     
-    /* 3. Header & Sidebar Light Styling */
     header[data-testid="stHeader"] {
         background-color: #fcfcfd !important;
     }
@@ -282,7 +269,6 @@ st.markdown(
 
 @st.cache_resource
 def load_system_pipeline():
-    """Load knowledge graph and initialize conversational pipeline."""
     client = DBpediaSPARQLClient()
     corpus = client.fetch_neapolitan_corpus(force_refresh=False)
     graph = NeapolitanArtGraph()
@@ -294,7 +280,6 @@ def load_system_pipeline():
     return client, graph, pipeline
 
 
-# Initialize session state for multi-turn history
 if "dialogue_history" not in st.session_state:
     st.session_state.dialogue_history = []
 if "latest_audio_path" not in st.session_state:
@@ -304,7 +289,6 @@ if "latest_inconsistency" not in st.session_state:
 
 client, graph, pipeline = load_system_pipeline()
 
-# Academic Header
 st.markdown(
     """
     <div class="academic-header">
@@ -318,7 +302,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Sidebar: System Status & Controls
 with st.sidebar:
     st.subheader("System Architecture")
     st.markdown(f"**Knowledge Graph Backend:** `{graph.active_backend.upper()}`")
@@ -351,7 +334,6 @@ with st.sidebar:
     st.markdown(f"- Cultural Venues: **{len(venues)}**")
     st.markdown(f"- Target Artists: **Caravaggio, Battistello Caracciolo**")
 
-# Main Layout: Single-Page Architecture
 col_chat, col_state = st.columns([7, 3])
 
 with col_state:
@@ -393,10 +375,8 @@ with col_state:
 with col_chat:
     st.markdown("### Spoken Voice & Text Inquiry")
 
-    # Voice recording via microphone
     mic_audio = st.audio_input("Record voice question via microphone:")
 
-    # Text input
     user_text = st.text_input(
         "Or type your question directly:",
         placeholder="e.g. Can I visit The Seven Works of Mercy at Capodimonte?",
@@ -405,7 +385,6 @@ with col_chat:
 
     submit_text = st.button("Submit Question", type="primary")
 
-    # Process voice recording when freshly captured
     if mic_audio is not None:
         audio_bytes = mic_audio.read()
         if audio_bytes and audio_bytes != st.session_state.get("last_processed_audio_bytes"):
@@ -424,7 +403,6 @@ with col_chat:
                 )
                 st.rerun()
 
-    # Process text query on submission
     if submit_text and user_text.strip():
         with st.spinner("Querying knowledge graph and synthesizing spoken response..."):
             turn_res = pipeline.process_text_turn(user_text.strip())
@@ -440,7 +418,6 @@ with col_chat:
             )
             st.rerun()
 
-    # Latest Response Display & Spoken Audio Playback
     if st.session_state.dialogue_history:
         latest = st.session_state.dialogue_history[-1]
         st.markdown(f"<div class='chat-bubble-user'><strong>Your Inquiry:</strong> {latest['user']}</div>", unsafe_allow_html=True)
@@ -450,9 +427,6 @@ with col_chat:
             st.markdown("#### Spoken Audio Playback (TTS)")
             st.audio(st.session_state.latest_audio_path, format="audio/mp3")
 
-# ==============================================================================
-# EXPANDABLE KNOWLEDGE GRAPH & DBPEDIA CATALOG
-# ==============================================================================
 st.markdown("---")
 with st.expander("Cultural Heritage Knowledge Graph & DBpedia Ground Truth Catalog", expanded=False):
     st.markdown("### Cultural Heritage Knowledge Catalog (Naples, Italy)")

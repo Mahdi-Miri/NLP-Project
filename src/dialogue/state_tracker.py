@@ -1,8 +1,3 @@
-"""
-Dialogue State Tracking module for multi-turn conversational interaction.
-Maintains context, active artistic entities, anaphora resolution, and history.
-"""
-
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -34,11 +29,6 @@ class DialogueState(BaseModel):
 
 
 class DialogueStateTracker:
-    """
-    Tracks and updates conversational state across dialogue turns.
-    Resolves pronouns and implicit references using discourse history.
-    """
-
     def __init__(self):
         self.state = DialogueState()
 
@@ -54,9 +44,6 @@ class DialogueStateTracker:
         location: Optional[Dict[str, Any]] = None,
         inconsistency: Optional[InconsistencyReport] = None,
     ):
-        """
-        Commit a dialogue turn to history and update active entity pointers.
-        """
         self.state.turn_counter += 1
 
         if artwork:
@@ -87,14 +74,9 @@ class DialogueStateTracker:
         self.state.history.append(turn)
 
     def resolve_anaphora(self, utterance: str) -> Dict[str, Any]:
-        """
-        Resolve pronouns like 'it', 'the painting', 'he', 'there'
-        to currently active entities in the dialogue state.
-        """
         resolved: Dict[str, Any] = {}
         u_lower = utterance.lower()
 
-        # Pronoun referring to artwork
         art_patterns = [
             r"\b(it|its|this|that)\b",
             r"\b(this|that|the)\s+(work|painting|canvas|piece|masterpiece)\b",
@@ -103,7 +85,6 @@ class DialogueStateTracker:
             if self.state.active_artwork:
                 resolved["artwork"] = self.state.active_artwork
 
-        # Pronoun referring to artist
         artist_patterns = [
             r"\b(he|him|his)\b",
             r"\b(the|this)\s+(painter|artist|author|creator)\b",
@@ -112,7 +93,6 @@ class DialogueStateTracker:
             if self.state.active_artist:
                 resolved["artist"] = self.state.active_artist
 
-        # Adverb referring to venue
         loc_patterns = [
             r"\b(there|here)\b",
             r"\b(this|the)\s+(venue|museum|church|gallery|place|site)\b",
@@ -124,5 +104,4 @@ class DialogueStateTracker:
         return resolved
 
     def reset(self):
-        """Reset state for a new conversation session."""
         self.state = DialogueState()

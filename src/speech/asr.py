@@ -1,8 +1,3 @@
-"""
-Automatic Speech Recognition (ASR) module using OpenAI Whisper.
-Transcribes user voice questions with robust error handling and format normalization.
-"""
-
 import logging
 from pathlib import Path
 from typing import Any, Optional, Tuple, Union
@@ -33,10 +28,6 @@ DEFAULT_NEAPOLITAN_PROMPT = (
 
 
 class SpeechRecognizer:
-    """
-    ASR wrapper around OpenAI Whisper for speech-to-text with domain context conditioning.
-    """
-
     def __init__(
         self,
         model_name: Optional[str] = None,
@@ -56,24 +47,18 @@ class SpeechRecognizer:
             self._model = whisper.load_model(self.model_name, device=self.device)
 
     def transcribe(self, audio_source: Union[str, Path, bytes, np.ndarray]) -> Tuple[str, str]:
-        """
-        Transcribe audio input to text with domain prompting and forced English decoding.
-        Returns:
-            Tuple[str, str]: (transcribed_text, detected_language)
-        """
         self._ensure_model_loaded()
 
         transcribe_kwargs = {
             "language": "en",
             "initial_prompt": self.domain_prompt,
-            "beam_size": 5,
-            "temperature": 0.0,
+            "beam_size": 1,
+            "temperature": (0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
             "condition_on_previous_text": False,
             "fp16": False,
         }
 
         try:
-            # Decode any input format (str path, Path, bytes, or ndarray) to normalized 16kHz float32
             if isinstance(audio_source, np.ndarray):
                 audio_array = audio_source.astype(np.float32)
             else:
@@ -90,3 +75,26 @@ class SpeechRecognizer:
         except Exception as exc:
             logger.error("ASR transcription error: %s", exc)
             return "", "en"
+
+
+def word_error_rate(reference: str, hypothesis: str) -> float:
+    # WER = 100 * (Insertions + Substitutions + Deletions) / len(reference words), SLP3 ch. 16.6
+    ref_words = reference.lower().split()
+    hyp_words = hypothesis.lower().split()
+    n, m = len(ref_words), len(hyp_words)
+
+    dp = [[0] * (m + 1) for _ in range(n + 1)]
+    for i in range(n + 1):
+        dp[i][0] = i
+    for j in range(m + 1):
+        dp[0][j] = j
+    for i in range(1, n + 1):
+        for j in range(1, m + 1):
+            if ref_words[i - 1] == hyp_words[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1]
+            else:
+                dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+
+    if n == 0:
+        return 0.0 if m == 0 else 100.0
+    return 100.0 * dp[n][m] / n

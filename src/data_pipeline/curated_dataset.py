@@ -1,9 +1,3 @@
-"""
-Authoritative curated dataset of masterpieces by Caravaggio and Battistello Caracciolo
-located and visitable in the urban area of Naples (Napoli), Italy.
-Enriched with DBpedia resource URIs, historical context, and museum venues.
-"""
-
 NEAPOLITAN_ARTWORKS = [
     # --- CARAVAGGIO IN NAPLES ---
     {
@@ -154,7 +148,6 @@ NEAPOLITAN_ARTWORKS = [
     }
 ]
 
-# Famous non-Neapolitan artworks used for inconsistency and contradiction detection
 NON_NEAPOLITAN_ARTWORKS = [
     {
         "title": "The Calling of Saint Matthew",

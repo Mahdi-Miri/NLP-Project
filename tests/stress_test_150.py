@@ -1,12 +1,3 @@
-"""
-Comprehensive 150-Test Stress Benchmark for Neapolitan Art Dialogue System.
-Evaluates:
-- Inconsistency Detection (Artist, Venue, City, Out-of-scope)
-- Ground Truth Factual Retrieval Accuracy
-- Multi-turn Coreference and Context Tracking
-- Latency and Error Diagnostics
-"""
-
 import json
 import os
 import sys
@@ -14,7 +5,6 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# Ensure project root is in path
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
@@ -26,9 +16,6 @@ from src.dialogue.inconsistency import InconsistencyDetector, InconsistencyType
 def build_150_test_suite() -> List[Dict[str, Any]]:
     tests: List[Dict[str, Any]] = []
 
-    # =========================================================================
-    # CATEGORY 1: ARTIST ATTRIBUTION INCONSISTENCIES (30 TESTS)
-    # =========================================================================
     caravaggio_works = [
         "The Seven Works of Mercy",
         "The Flagellation of Christ",
@@ -99,9 +86,6 @@ def build_150_test_suite() -> List[Dict[str, Any]]:
             "expected_entities": ["Battistello Caracciolo"],
         })
 
-    # =========================================================================
-    # CATEGORY 2: VENUE / LOCATION INCONSISTENCIES WITHIN NAPLES (30 TESTS)
-    # =========================================================================
     location_pairs = [
         ("The Seven Works of Mercy", "Capodimonte", "Pio Monte della Misericordia"),
         ("The Seven Works of Mercy", "Palazzo Zevallos", "Pio Monte della Misericordia"),
@@ -145,9 +129,6 @@ def build_150_test_suite() -> List[Dict[str, Any]]:
             "expected_entities": [true_venue],
         })
 
-    # =========================================================================
-    # CATEGORY 3: CITY / GEOGRAPHIC INCONSISTENCIES (30 TESTS)
-    # =========================================================================
     non_neapolitan = [
         ("The Calling of Saint Matthew", "Rome"),
         ("Calling of Saint Matthew", "Rome"),
@@ -191,9 +172,6 @@ def build_150_test_suite() -> List[Dict[str, Any]]:
             "expected_entities": [city],
         })
 
-    # =========================================================================
-    # CATEGORY 4: OUT-OF-SCOPE ARTIST INCONSISTENCIES (15 TESTS)
-    # =========================================================================
     disallowed_artists = [
         "Leonardo da Vinci",
         "Leonardo",
@@ -222,9 +200,6 @@ def build_150_test_suite() -> List[Dict[str, Any]]:
             "expected_entities": [],
         })
 
-    # =========================================================================
-    # CATEGORY 5: VALID GROUND TRUTH FACTUAL INQUIRIES (25 TESTS)
-    # =========================================================================
     valid_queries = [
         ("Tell me about The Seven Works of Mercy.", ["Caravaggio", "Pio Monte della Misericordia"]),
         ("Where is The Seven Works of Mercy located in Naples?", ["Pio Monte della Misericordia", "Tribunali"]),
@@ -263,40 +238,31 @@ def build_150_test_suite() -> List[Dict[str, Any]]:
             "expected_entities": expected_kws,
         })
 
-    # =========================================================================
-    # CATEGORY 6: MULTI-TURN DISCOURSE & COREFERENCE SEQUENCES (20 TESTS)
-    # =========================================================================
-    # 5 dialogue conversations with 4 turns each = 20 tests
     multi_turn_dialogues = [
-        # Dialogue 1: Caravaggio at Pio Monte -> Coreference -> Inconsistency check
         [
             ("Tell me about The Seven Works of Mercy.", False, "no_inconsistency", ["Caravaggio", "Pio Monte"]),
             ("Where is it located?", False, "no_inconsistency", ["Pio Monte della Misericordia"]),
             ("What are its dimensions?", False, "no_inconsistency", ["390 cm x 260 cm"]),
             ("Did Battistello paint it?", True, "artist_mismatch", ["Caravaggio"]),
         ],
-        # Dialogue 2: Capodimonte Flagellation -> Coreference -> Venue inconsistency
         [
             ("Tell me about The Flagellation of Christ.", False, "no_inconsistency", ["Caravaggio", "Capodimonte"]),
             ("Who is the artist?", False, "no_inconsistency", ["Caravaggio"]),
             ("Can I visit it at Pio Monte?", True, "location_mismatch", ["Capodimonte"]),
             ("What year was it painted?", False, "no_inconsistency", ["1607"]),
         ],
-        # Dialogue 3: Battistello -> Coreference -> Outside Naples inquiry
         [
             ("Tell me about The Liberation of Saint Peter.", False, "no_inconsistency", ["Battistello", "Pio Monte"]),
             ("Where can I see it?", False, "no_inconsistency", ["Pio Monte della Misericordia"]),
             ("Who painted this work?", False, "no_inconsistency", ["Battistello Caracciolo"]),
             ("Can I also see The Calling of Saint Matthew there?", True, "city_mismatch", ["Rome"]),
         ],
-        # Dialogue 4: Certosa di San Martino -> Followup
         [
             ("What works are located at Certosa di San Martino?", False, "no_inconsistency", ["Washing of the Feet", "Assunta"]),
             ("Tell me about The Washing of the Feet.", False, "no_inconsistency", ["Battistello", "San Martino"]),
             ("Who painted it?", False, "no_inconsistency", ["Battistello Caracciolo"]),
             ("Did Caravaggio paint it?", True, "artist_mismatch", ["Battistello"]),
         ],
-        # Dialogue 5: Gallerie d'Italia (Saint Ursula) -> Out of scope check
         [
             ("Tell me about The Martyrdom of Saint Ursula.", False, "no_inconsistency", ["Caravaggio", "Zevallos"]),
             ("Where is it located?", False, "no_inconsistency", ["Toledo", "Zevallos"]),
@@ -331,7 +297,6 @@ def run_benchmark():
     print(f"Total Test Cases Compiled: {len(test_suite)}")
     assert len(test_suite) == 150, f"Expected exactly 150 tests, got {len(test_suite)}"
 
-    # Category counts
     cat_counts = {}
     for t in test_suite:
         cat = t["category"]
@@ -340,20 +305,17 @@ def run_benchmark():
     for cat, cnt in cat_counts.items():
         print(f"  - {cat}: {cnt} tests")
 
-    # Initialize bot
     bot = NeapolitanArtChatbot()
 
-    # Results tracking
     passed_tests = 0
     failed_tests = 0
     failures: List[Dict[str, Any]] = []
     latencies: List[float] = []
 
-    # Confusion matrix for inconsistency detection
-    tp = 0  # True Positive: Inconsistency expected & detected correctly
-    fp = 0  # False Positive: Normal query incorrectly flagged as inconsistent
-    tn = 0  # True Negative: Normal query correctly identified as consistent
-    fn = 0  # False Negative: Inconsistency expected but missed
+    tp = 0
+    fp = 0
+    tn = 0
+    fn = 0
 
     current_dialogue_id = None
 
@@ -361,13 +323,11 @@ def run_benchmark():
     start_total_time = time.time()
 
     for idx, test in enumerate(test_suite, 1):
-        # Manage dialogue context for multi-turn sequences
         if "dialogue_id" in test:
             if test["dialogue_id"] != current_dialogue_id:
                 bot.reset_dialogue()
                 current_dialogue_id = test["dialogue_id"]
         else:
-            # Single-turn independent tests
             bot.reset_dialogue()
             current_dialogue_id = None
 
@@ -380,32 +340,27 @@ def run_benchmark():
         actual_inconsistent = inc.is_inconsistent
         actual_type = inc.inconsistency_type.value if actual_inconsistent else "no_inconsistency"
 
-        # Check correctness
         test_passed = True
         fail_reasons = []
 
-        # 1. Check inconsistency binary flag
         if actual_inconsistent != test["expected_inconsistent"]:
             test_passed = False
             fail_reasons.append(
                 f"Binary mismatch: expected is_inconsistent={test['expected_inconsistent']}, got {actual_inconsistent}"
             )
 
-        # 2. Check inconsistency type
         if test["expected_inconsistent"] and actual_type != test["expected_type"]:
             test_passed = False
             fail_reasons.append(
                 f"Type mismatch: expected type '{test['expected_type']}', got '{actual_type}'"
             )
 
-        # 3. Check expected entities in response if specified
         combined_text = (result.system_response + " " + inc.explanation + " " + inc.suggested_correction).lower()
         for expected_ent in test.get("expected_entities", []):
             if expected_ent.lower() not in combined_text:
                 test_passed = False
                 fail_reasons.append(f"Missing expected entity or keyword: '{expected_ent}'")
 
-        # Update confusion matrix
         if test["expected_inconsistent"]:
             if actual_inconsistent and actual_type == test["expected_type"]:
                 tp += 1
@@ -441,7 +396,6 @@ def run_benchmark():
     total_duration = time.time() - start_total_time
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
 
-    # Calculate Metrics
     accuracy = (passed_tests / len(test_suite)) * 100.0
     precision = (tp / (tp + fp)) * 100.0 if (tp + fp) > 0 else 0.0
     recall = (tp / (tp + fn)) * 100.0 if (tp + fn) > 0 else 0.0
@@ -465,7 +419,6 @@ def run_benchmark():
     print(f"Recall:               {recall:.2f}%")
     print(f"F1-Score:             {f1:.2f}%")
 
-    # Output Failures Details
     if failures:
         print("\n" + "=" * 70)
         print("DIAGNOSTICS: FAILED TEST CASES")
@@ -479,7 +432,6 @@ def run_benchmark():
     else:
         print("\nPERFECT RUN: ZERO FAILURES ACROSS ALL 150 TEST CASES!")
 
-    # Save artifact report
     report_data = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "total_tests": len(test_suite),

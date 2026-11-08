@@ -1,8 +1,3 @@
-"""
-Text-to-Speech (TTS) module providing spoken responses.
-Integrates Edge-TTS neural speech synthesis with offline pyttsx3 fallback.
-"""
-
 import asyncio
 import logging
 import tempfile
@@ -29,10 +24,6 @@ except ImportError:
 
 
 class TextToSpeechSynthesizer:
-    """
-    Synthesizes chatbot conversational responses into spoken audio.
-    """
-
     def __init__(
         self,
         voice: Optional[str] = None,
@@ -42,10 +33,6 @@ class TextToSpeechSynthesizer:
         self.preferred_engine = engine or config.speech.tts_engine
 
     def synthesize_to_file(self, text: str, output_filepath: Optional[str] = None) -> str:
-        """
-        Synthesize text into an audio file (.mp3 or .wav).
-        Returns the path to the generated audio file.
-        """
         clean_text = self._sanitize_text(text)
         if not clean_text:
             clean_text = "No content to read."
@@ -55,7 +42,6 @@ class TextToSpeechSynthesizer:
             with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                 output_filepath = tmp.name
 
-        # Try Edge-TTS first if configured
         if self.preferred_engine == "edge" and EDGE_TTS_AVAILABLE:
             try:
                 self._run_edge_tts(clean_text, output_filepath)
@@ -63,7 +49,6 @@ class TextToSpeechSynthesizer:
             except Exception as exc:
                 logger.warning("Edge-TTS synthesis failed (%s), falling back to pyttsx3...", exc)
 
-        # Fallback to pyttsx3
         if PYTTSX3_AVAILABLE:
             try:
                 self._run_pyttsx3(clean_text, output_filepath)
@@ -75,7 +60,6 @@ class TextToSpeechSynthesizer:
         return output_filepath
 
     def synthesize_to_bytes(self, text: str) -> bytes:
-        """Synthesize text and return the raw audio bytes."""
         filepath = self.synthesize_to_file(text)
         try:
             with open(filepath, "rb") as f:
@@ -85,13 +69,11 @@ class TextToSpeechSynthesizer:
             return b""
 
     def _sanitize_text(self, text: str) -> str:
-        """Remove markdown syntax, bullet stars, and brackets for smooth narration."""
         cleaned = text.replace("*", "").replace("#", "").replace("`", "")
         cleaned = cleaned.replace("Notice:", "Notice.").replace("Clarification:", "Clarification.")
         return cleaned.strip()
 
     def _run_edge_tts(self, text: str, output_path: str):
-        """Run async edge-tts communicate loop synchronously."""
         async def _speak():
             communicate = edge_tts.Communicate(text, self.voice)
             await communicate.save(output_path)
@@ -99,7 +81,6 @@ class TextToSpeechSynthesizer:
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # In environments with already running loop (like Jupyter or asyncio workers)
                 import nest_asyncio
                 nest_asyncio.apply()
                 loop.run_until_complete(_speak())
@@ -109,7 +90,6 @@ class TextToSpeechSynthesizer:
             asyncio.run(_speak())
 
     def _run_pyttsx3(self, text: str, output_path: str):
-        """Synthesize audio using pyttsx3 offline engine."""
         engine = pyttsx3.init()
         engine.setProperty("rate", 160)
         engine.save_to_file(text, output_path)

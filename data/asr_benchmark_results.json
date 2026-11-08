@@ -1,0 +1,44 @@
+[
+  {
+    "backend": "openai-whisper",
+    "size": "tiny",
+    "seconds": 0.24,
+    "wer_percent": 0.0,
+    "hypothesis": "Tell me about the Seven Works of Mercy by Caravaggio in Pio Monte della Misericordia."
+  },
+  {
+    "backend": "openai-whisper",
+    "size": "base",
+    "seconds": 0.24,
+    "wer_percent": 0.0,
+    "hypothesis": "Tell me about the Seven Works of Mercy by Caravaggio in Pio Monte della Misericordia."
+  },
+  {
+    "backend": "openai-whisper",
+    "size": "small",
+    "seconds": 0.72,
+    "wer_percent": 0.0,
+    "hypothesis": "Tell me about the Seven Works of Mercy by Caravaggio in Pio Monte della Misericordia."
+  },
+  {
+    "backend": "openai-whisper",
+    "size": "medium",
+    "seconds": 1.99,
+    "wer_percent": 0.0,
+    "hypothesis": "Tell me about the Seven Works of Mercy by Caravaggio in Pio Monte della Misericordia."
+  },
+  {
+    "backend": "faster-whisper",
+    "size": "small",
+    "seconds": 1.48,
+    "wer_percent": 0.0,
+    "hypothesis": "Tell me about the Seven Works of Mercy by Caravaggio in Pio Monte della Misericordia."
+  },
+  {
+    "backend": "faster-whisper",
+    "size": "medium",
+    "seconds": 3.53,
+    "wer_percent": 0.0,
+    "hypothesis": "Tell me about the Seven Works of Mercy by Caravaggio in Pio Monte della Misericordia."
+  }
+]
