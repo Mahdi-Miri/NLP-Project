@@ -115,7 +115,7 @@ def create_pipeline_diagram(output_path="docs/pipeline_architecture.png"):
 
     draw_box(c1_x, 15, col_w, 21.5, "3. Phonetic Normalizer", "Lexical Regularization", [
         "Preposition Fix: 'for' -> 'of'",
-        "Italian Degemination Correction",
+        "'St.' -> 'Saint' Expansion",
         "Dialect Spacing: 'capo di monte'",
         "Numeral to Word Expansion"
     ])
@@ -136,7 +136,7 @@ def create_pipeline_diagram(output_path="docs/pipeline_architecture.png"):
     draw_box(c2_x, 41, col_w, 22.5, "5. Discourse Tracker (DST)", "Memory State Tuple S(t)", [
         "S(t) = <Artist, Artwork, Venue>",
         "Anaphoric Pronoun Resolution ('it')",
-        "Recency Window (W=3 turns)",
+        "Persists Until Explicitly Reset",
         "Idempotent Entity State Transition",
         "Contextual Isolation (No Bleed)"
     ])
