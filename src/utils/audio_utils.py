@@ -28,8 +28,6 @@ def load_and_normalize_audio(file_path_or_bytes: Any, target_sr: int = 16000) ->
             data = resample(data, num_target_samples).astype(np.float32)
             sample_rate = target_sr
 
-        # Zero-center then peak-normalize, matching the 0-mean, [-1, 1] range
-        # Whisper applies internally to its log-mel input.
         data = data - np.mean(data)
         max_amplitude = np.max(np.abs(data))
         if max_amplitude > 1e-4:
@@ -43,7 +41,6 @@ def load_and_normalize_audio(file_path_or_bytes: Any, target_sr: int = 16000) ->
 
 
 def save_audio_to_temp_wav(audio_bytes: bytes) -> str:
-    """Save raw audio bytes to a temporary WAV file and return path."""
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         tmp.write(audio_bytes)
         return tmp.name

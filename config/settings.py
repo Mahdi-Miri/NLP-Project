@@ -24,7 +24,7 @@ class SpeechSettings(BaseModel):
     asr_model_name: str = "medium"
     asr_device: str = "cpu"
     tts_voice: str = "en-GB-RyanNeural"
-    tts_engine: str = "edge"  # 'edge' or 'pyttsx3'
+    tts_engine: str = "edge"
 
 
 class AppConfig(BaseModel):

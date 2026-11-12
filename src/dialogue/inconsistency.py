@@ -150,10 +150,8 @@ class InconsistencyDetector:
                 for term in other_terms:
                     pattern = r"\b" + re.escape(term) + r"\b"
                     if re.search(pattern, query):
-                        # "X or Y, who/which...?" is a clarification question, not a claim.
                         if " or " in query and ("who" in query or "which" in query):
                             continue
-                        # "X did NOT paint it" (X = wrong artist) is a correct statement.
                         if self._is_negated_before(query, pattern):
                             continue
 
@@ -169,7 +167,6 @@ class InconsistencyDetector:
                 for term in true_terms:
                     pattern = r"\b" + re.escape(term) + r"\b"
                     if re.search(pattern, query) and self._is_negated_before(query, pattern):
-                        # "X did NOT paint it" (X = true artist) is an incorrect claim.
                         return InconsistencyReport(
                             is_inconsistent=True,
                             inconsistency_type=InconsistencyType.ARTIST_MISMATCH,

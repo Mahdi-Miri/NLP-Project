@@ -1,5 +1,4 @@
 NEAPOLITAN_ARTWORKS = [
-    # --- CARAVAGGIO IN NAPLES ---
     {
         "uri": "https://dbpedia.org/resource/The_Seven_Works_of_Mercy_(Caravaggio)",
         "source_url": "https://en.wikipedia.org/wiki/The_Seven_Works_of_Mercy_(Caravaggio)",
@@ -55,7 +54,6 @@ NEAPOLITAN_ARTWORKS = [
         "subjects": ["Saint Ursula", "Martyrdom", "Self-portrait in background"]
     },
 
-    # --- BATTISTELLO CARACCIOLO IN NAPLES ---
     {
         "uri": "https://dbpedia.org/resource/The_Liberation_of_Saint_Peter_(Battistello)",
         "source_url": "https://it.wikipedia.org/wiki/Liberazione_di_san_Pietro_(Caracciolo)",

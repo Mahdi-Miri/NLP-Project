@@ -28,9 +28,6 @@ class DBpediaSPARQLClient:
 
     @staticmethod
     def _to_graph_uri(uri: str) -> str:
-        """DBpedia's RDF graph uses http:// resource IRIs; our stored URIs use
-        https:// (which only works as a browser-facing redirect, not inside SPARQL
-        triple patterns). Normalize before querying or every OPTIONAL silently matches zero rows."""
         return uri.replace("https://dbpedia.org", "http://dbpedia.org", 1)
 
     def execute_query(self, query: str) -> List[Dict[str, Any]]:

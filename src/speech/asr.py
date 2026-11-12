@@ -78,7 +78,6 @@ class SpeechRecognizer:
 
 
 def word_error_rate(reference: str, hypothesis: str) -> float:
-    # WER = 100 * (Insertions + Substitutions + Deletions) / len(reference words), SLP3 ch. 16.6
     ref_words = reference.lower().split()
     hyp_words = hypothesis.lower().split()
     n, m = len(ref_words), len(hyp_words)

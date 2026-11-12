@@ -1,7 +1,3 @@
-"""
-Vertical workflow diagram of the actual dialogue pipeline, rendered with Graphviz.
-Reflects the real modules in src/ — not an idealized or invented architecture.
-"""
 
 from pathlib import Path
 import graphviz
@@ -55,7 +51,6 @@ def build_pipeline_graphviz_vertical():
         penwidth="1.0",
     )
 
-    # ---------------- One-time setup path (left side, feeds the graph) ----------------
     with dot.subgraph(name="cluster_setup") as cs:
         cs.attr(
             label="  ONE-TIME SETUP (scripts/build_graph.py)",
@@ -83,7 +78,6 @@ def build_pipeline_graphviz_vertical():
         cs.edge("dbpedia", "cache")
         cs.edge("curated", "cache")
 
-    # ---------------- Per-turn pipeline (main vertical flow) ----------------
     dot.node("input", box(
         ["Microphone audio or typed text",
          "app.py (Streamlit) or scripts/interactive_cli.py"],
@@ -159,7 +153,6 @@ def build_pipeline_graphviz_vertical():
         "10. Response Delivered",
     ))
 
-    # Main vertical flow
     dot.edge("input", "asr", label=" if voice")
     dot.edge("input", "normalize", label=" if text", style="dashed")
     dot.edge("asr", "normalize", label=" transcript")
@@ -177,7 +170,6 @@ def build_pipeline_graphviz_vertical():
     dot.edge("state", "output", label=" if text mode", style="dashed")
     dot.edge("tts", "output")
 
-    # Setup feeds the graph (not part of the per-turn loop)
     dot.edge("cache", "graph", label="  populates", style="dotted", color="#777777", constraint="false")
 
     output_base = str(docs_dir / "pipeline_architecture")

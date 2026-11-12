@@ -1,7 +1,3 @@
-"""
-Technical report generator for the Neapolitan Artistic Heritage Dialogue System.
-Natural Language Processing course project, University of Naples Federico II (DIETI).
-"""
 
 import sys
 from pathlib import Path
@@ -29,7 +25,6 @@ if str(project_root) not in sys.path:
 
 
 class NumberedCanvas(canvas.Canvas):
-    """Two-pass canvas so headers/footers know the final page count."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -50,16 +45,16 @@ class NumberedCanvas(canvas.Canvas):
     def draw_decorations(self, page_count):
         self.saveState()
         self.setFont("Helvetica", 7.5)
-        self.setFillColor(colors.HexColor("#444444"))
+        self.setFillColor(colors.black)
 
         if self._pageNumber > 1:
             self.drawString(50, 752, "Neapolitan Artistic Heritage Dialogue System")
             self.drawRightString(562, 752, "University of Naples Federico II — DIETI")
-            self.setStrokeColor(colors.HexColor("#999999"))
+            self.setStrokeColor(colors.black)
             self.setLineWidth(0.5)
             self.line(50, 745, 562, 745)
 
-        self.setStrokeColor(colors.HexColor("#999999"))
+        self.setStrokeColor(colors.black)
         self.setLineWidth(0.5)
         self.line(50, 44, 562, 44)
         self.drawString(50, 32, "Natural Language Processing — Course Project Report")
@@ -79,14 +74,10 @@ def build_report(output_path: Path):
         bottomMargin=52,
     )
 
-    c_heading = colors.HexColor("#1a1a1a")
-    c_body = colors.HexColor("#222222")
+    c_heading = colors.HexColor("#000000")
+    c_body = colors.HexColor("#1a1a1a")
     c_muted = colors.HexColor("#555555")
-    c_border = colors.HexColor("#aaaaaa")
-    c_table_head = colors.HexColor("#2b2b2b")
-    c_row_alt = colors.HexColor("#f5f5f5")
-    c_code_bg = colors.HexColor("#f2f2f2")
-    c_callout_bg = colors.HexColor("#f7f7f7")
+    c_border = colors.HexColor("#000000")
 
     styles = getSampleStyleSheet()
 
@@ -119,8 +110,8 @@ def build_report(output_path: Path):
     )
     code_style = ParagraphStyle(
         "Code", parent=styles["Normal"], fontName="Courier", fontSize=8,
-        leading=11.5, textColor=c_body, backColor=c_code_bg,
-        borderPadding=8, spaceBefore=4, spaceAfter=10,
+        leading=11.5, textColor=c_body, leftIndent=10,
+        borderPadding=6, spaceBefore=4, spaceAfter=10,
     )
     caption_style = ParagraphStyle(
         "Caption", parent=styles["Normal"], fontName="Helvetica-Oblique",
@@ -128,7 +119,7 @@ def build_report(output_path: Path):
     )
     table_cell = ParagraphStyle("TCell", parent=body, fontSize=8.5, leading=11.5, spaceAfter=0)
     table_head_cell = ParagraphStyle(
-        "TCellHead", parent=table_cell, fontName="Helvetica-Bold", textColor=colors.white,
+        "TCellHead", parent=table_cell, fontName="Helvetica-Bold", textColor=c_heading,
     )
 
     def P(text, style=body):
@@ -153,19 +144,13 @@ def build_report(output_path: Path):
             ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
         ]
         if header:
-            style_cmds += [
-                ("BACKGROUND", (0, 0), (-1, 0), c_table_head),
-            ]
-        for r in range(1 if header else 0, len(data)):
-            if (r - (1 if header else 0)) % 2 == 1:
-                style_cmds.append(("BACKGROUND", (0, r), (-1, r), c_row_alt))
+            style_cmds.append(("LINEBELOW", (0, 0), (-1, 0), 1.0, c_border))
         t.setStyle(TableStyle(style_cmds))
         return t
 
     def callout(text):
         t = Table([[P(text, body)]], colWidths=[468])
         t.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), c_callout_bg),
             ("BOX", (0, 0), (-1, -1), 0.6, c_border),
             ("LEFTPADDING", (0, 0), (-1, -1), 10),
             ("RIGHTPADDING", (0, 0), (-1, -1), 10),
@@ -176,7 +161,6 @@ def build_report(output_path: Path):
 
     story = []
 
-    # ---------- Title ----------
     story.append(P("Neapolitan Artistic Heritage Dialogue System", title_style))
     story.append(P(
         "A speech-enabled chatbot for Caravaggio and Battistello Caracciolo's works in Naples, "
@@ -189,7 +173,6 @@ def build_report(output_path: Path):
     story.append(P("<b>Institution:</b> University of Naples Federico II, DIETI", meta_style))
     story.append(Spacer(1, 14))
 
-    # ---------- 1. Introduction ----------
     story.append(P("1. Introduction", h1))
     story.append(P(
         "This report documents what I built to satisfy my Natural Language Processing course "
@@ -221,7 +204,6 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 2. Domain ----------
     story.append(P("2. Domain: Caravaggio and Battistello in Naples", h1))
     story.append(P(
         "Caravaggio spent two periods in Naples (1606–1607 and 1609–1610), fleeing Rome after a fatal "
@@ -266,16 +248,18 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 3. Architecture overview ----------
     story.append(P("3. System Overview", h1))
     story.append(P(
-        "I split the system into four layers, each with a single, fairly narrow job:",
+        "I split the system into four layers, each with a single, fairly narrow job. A data-acquisition "
+        "layer queries DBpedia for the two artists, their works, and the venues, and caches what it "
+        "gets back locally. A Neo4j graph store holds that catalog as a chain of relationships — artist "
+        "painted artwork, artwork located at a venue, venue in the city. A dialogue layer sits on top of "
+        "the graph, extracting entities, resolving pronouns, checking for inconsistencies, and writing "
+        "the actual reply. And a speech layer bookends the whole thing — Whisper turning voice into text "
+        "on the way in, Edge-TTS (with an offline pyttsx3 fallback) turning the reply back into audio on "
+        "the way out.",
         body,
     ))
-    story.append(P("• <b>Data acquisition</b> — a SPARQL client that queries DBpedia for the two artists, their works, and the venues, and caches the results locally.", bullet))
-    story.append(P("• <b>Knowledge graph</b> — a Neo4j graph store, holding the catalog as (:Artist)-[:PAINTED]->(:Artwork)-[:LOCATED_AT]->(:Location)-[:IN_CITY]->(:City).", bullet))
-    story.append(P("• <b>Dialogue engine</b> — entity extraction, coreference resolution, an inconsistency checker, and a response generator, all working against the graph.", bullet))
-    story.append(P("• <b>Speech layer</b> — Whisper for transcription on the way in, Edge-TTS (with an offline pyttsx3 fallback) for synthesis on the way out.", bullet))
     story.append(P(
         "I tied these together with a Streamlit app that presents a single-page interface: a microphone "
         "input, a text box, a running transcript, and an expandable view of the underlying graph so that "
@@ -312,7 +296,71 @@ def build_report(output_path: Path):
         ))
         story.append(PageBreak())
 
-    # ---------- 4. Data acquisition ----------
+    story.append(P("3.1 Step by step, what actually happens on a turn", h2))
+    story.append(P(
+        "Walking through Figure 1 stage by stage, with the actual file and function behind each box "
+        "(sections 4-9 go deeper into several of these; this is the connective tissue between them):",
+        body,
+    ))
+    story.append(P("<b>1. User Turn.</b> A turn starts as either a browser recording from Streamlit's "
+        "<font face='Courier'>st.audio_input</font> widget, or typed text, handled in "
+        "<font face='Courier'>app.py</font> (or, for terminal testing, "
+        "<font face='Courier'>scripts/interactive_cli.py</font>). Nothing downstream cares which one it "
+        "was past this point except for the TTS fork at the very end.", bullet))
+    story.append(P("<b>2. Speech Recognition</b> (voice turns only). "
+        "<font face='Courier'>src/speech/asr.py</font> loads the raw audio into a 16 kHz float32 array "
+        "(<font face='Courier'>src/utils/audio_utils.py</font>), then runs it through the local Whisper "
+        "<font face='Courier'>medium</font> model with the domain prompt and tuned decode settings from "
+        "Section 8. A text turn skips this box entirely — the dashed 'if text' edge in Figure 1.", bullet))
+    story.append(P("<b>3. Text Normalization.</b> Both paths converge here. A small set of regex "
+        "substitutions — lowercasing, 'for'/'on' collapsed to 'of' in artwork titles, 'capo di monte' "
+        "joined into 'capodimonte', common ASR mishears folded back to the canonical spelling — runs "
+        "identically whether the text came from Whisper or the keyboard, so the rest of the pipeline "
+        "never has to know which. The same normalization function is duplicated (not shared via import) "
+        "in both <font face='Courier'>chatbot.py</font> and <font face='Courier'>inconsistency.py</font>, "
+        "since each needed it before I'd factored the rest of their logic apart.", bullet))
+    story.append(P("<b>4. Entity Extraction &amp; Coreference.</b> "
+        "<font face='Courier'>chatbot.py</font> substring-matches the normalized text against the 8 "
+        "artwork titles (English and Italian), the two artist names and their variants, and the 5 venue "
+        "names. If nothing matched directly, <font face='Courier'>state_tracker.py</font>'s "
+        "<font face='Courier'>resolve_anaphora</font> checks for a pronoun ('it', 'he', 'there') and "
+        "substitutes in whatever is currently active from the previous turn.", bullet))
+    story.append(P("<b>5. Inconsistency Check.</b> Before the system ever answers from the graph, "
+        "<font face='Courier'>inconsistency.py</font> runs the entity (and the raw query text) past five "
+        "rule checks — detailed in Section 7. This is deliberately the fork point in Figure 1: if a "
+        "check fires, the turn jumps straight to response generation with a corrective reply and the "
+        "knowledge-graph lookup (step 6) never runs at all, since there's nothing to look up for a claim "
+        "the system is actively correcting.", bullet))
+    story.append(P("<b>6. Knowledge Graph Lookup.</b> For a turn with no contradiction, "
+        "<font face='Courier'>graph_db.py</font> queries Neo4j for the matched artwork, artist, or "
+        "location's full record. The first lookup in a session fetches the whole catalog over Bolt and "
+        "caches it on the <font face='Courier'>NeapolitanArtGraph</font> instance; every later lookup in "
+        "the same session is served from that cache until the graph is next repopulated — the "
+        "0.6 ms-per-query figure in Section 12 is this cache paying off.", bullet))
+    story.append(P("<b>7. Response Generation.</b> <font face='Courier'>chatbot.py</font> picks one of "
+        "several templates based on keywords in the question (authorship, location, dimensions, "
+        "significance, venue holdings — the Q1-Q5 categories in Figure 1) and fills it with the fields "
+        "retrieved in step 6, or with the correction text if step 5 forked here directly.", bullet))
+    story.append(P("<b>8. Dialogue State Update.</b> "
+        "<font face='Courier'>state_tracker.py</font> records whichever artist, artwork, and location "
+        "were active this turn (so step 4 can resolve a pronoun next turn), and appends the turn to the "
+        "conversation history shown in the UI's 'Dialogue State Tracker' panel.", bullet))
+    story.append(P("<b>9. Speech Synthesis</b> (voice mode only). "
+        "<font face='Courier'>tts.py</font> sends the response text to Edge-TTS; if that call fails for "
+        "any reason (no network, rate limiting), it falls back to the offline <font face='Courier'>"
+        "pyttsx3</font> engine so the turn still gets a spoken reply rather than silence.", bullet))
+    story.append(P("<b>10. Response Delivered.</b> The text (and audio, if synthesized) renders in the "
+        "Streamlit page or prints to the terminal, and the loop returns to step 1 for the next turn.", bullet))
+    story.append(P(
+        "The dashed box on the left of Figure 1 is <font face='Courier'>scripts/build_graph.py</font>, "
+        "which runs once before any conversation: it calls the SPARQL client to merge DBpedia facts with "
+        "the curated catalog into <font face='Courier'>data/dbpedia_cache.json</font>, then populates "
+        "Neo4j from that cache. It isn't part of the per-turn loop above — Section 5 explains why it "
+        "exists and what happens if Neo4j isn't reachable when it runs.",
+        body,
+    ))
+    story.append(Spacer(1, 6))
+
     story.append(P("4. Data Acquisition from DBpedia", h1))
     story.append(P(
         "I wrote a SPARQL client (<font face='Courier'>src/data_pipeline/sparql_client.py</font>) that "
@@ -348,7 +396,6 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 5. Knowledge graph ----------
     story.append(P("5. Knowledge Graph: Neo4j", h1))
     story.append(P(
         "The graph schema is simple: an Artist node points to the Artworks they painted, each Artwork "
@@ -391,7 +438,6 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 6. Dialogue management ----------
     story.append(P("6. Dialogue State and Coreference", h1))
     story.append(P(
         "People don't repeat the full title of a painting in every sentence. A typical exchange looks "
@@ -414,7 +460,6 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 7. Inconsistency detection ----------
     story.append(P("7. Inconsistency Detection", h1))
     story.append(P(
         "This was the part of the assignment that took me the most thought. I built the detector "
@@ -457,7 +502,6 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 8. Speech ----------
     story.append(P("8. Speech Input and Output", h1))
     story.append(P(
         "<b>Speech recognition.</b> For transcription I use OpenAI's Whisper, run locally "
@@ -553,7 +597,6 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 9. Web interface ----------
     story.append(P("9. Web Interface and Command-Line Tool", h1))
     story.append(P(
         "I kept the Streamlit app (<font face='Courier'>app.py</font>) deliberately simple: a single "
@@ -578,7 +621,6 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 10. Example conversations ----------
     story.append(P("10. Example Conversations", h1))
     story.append(P(
         "The transcripts below are taken directly from running sessions against the live system (not "
@@ -652,7 +694,6 @@ def build_report(output_path: Path):
 
     story.append(PageBreak())
 
-    # ---------- 11. Design decisions and challenges ----------
     story.append(P("11. Design Decisions and Challenges Along the Way", h1))
     story.append(P(
         "A few choices in this project weren't obvious to me from the start, and I think they're worth "
@@ -709,7 +750,6 @@ def build_report(output_path: Path):
 
     story.append(PageBreak())
 
-    # ---------- 12. Evaluation ----------
     story.append(P("12. Evaluation", h1))
     story.append(P(
         "I built two automated test layers. The first is a small pytest suite "
@@ -771,7 +811,6 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 13. Manual testing ----------
     story.append(P("13. Manual Testing Beyond the Automated Suite", h1))
     story.append(P(
         "To get a more honest sense of robustness, I ran a separate batch of hand-written conversations "
@@ -811,7 +850,6 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 14. Limitations ----------
     story.append(P("14. Limitations", h1))
     story.append(P("• <b>Fixed, small catalog.</b> Eight artworks and five venues are enough to demonstrate the approach, but the keyword-based entity matching would need to be rethought before scaling to hundreds of works, where title collisions and partial-string matches become more likely.", bullet))
     story.append(P("• <b>Rule-based, not statistical, matching.</b> Both entity extraction and inconsistency detection rely on string matching and regular expressions rather than embeddings or a trained classifier. This makes behavior predictable and easy to debug, but it means paraphrases the rules don't anticipate will be missed rather than approximately understood.", bullet))
@@ -819,7 +857,6 @@ def build_report(output_path: Path):
     story.append(P("• <b>No generative language model.</b> Responses are built from structured templates filled in with graph data, not generated by an LLM. This was a deliberate choice for factual reliability — see Section 1 — but it does mean phrasing is less varied than a generative system would produce.", bullet))
     story.append(P("• <b>DBpedia coverage gaps.</b> Not every fact needed (precise dimensions, street addresses) is reliably present in DBpedia for these specific entities, which is why the curated dataset exists alongside the SPARQL client rather than replacing it.", bullet))
 
-    # ---------- 15. Future work ----------
     story.append(P("15. Possible Extensions", h1))
     story.append(P(
         "A few directions were considered but left out of scope for this delivery, either because the "
@@ -833,7 +870,6 @@ def build_report(output_path: Path):
 
     story.append(Spacer(1, 6))
 
-    # ---------- 16. Reproducing the results ----------
     story.append(P("16. Reproducing These Results", h1))
     story.append(P(
         "All commands below assume a Python 3.10+ virtual environment with "
@@ -865,7 +901,6 @@ def build_report(output_path: Path):
         body,
     ))
 
-    # ---------- 17. Tools and technologies ----------
     story.append(P("17. Tools and Technologies", h1))
     story.append(P(
         "A quick inventory of what I actually built this with, and why each piece is there. Everything "
@@ -925,7 +960,6 @@ def build_report(output_path: Path):
 
     story.append(PageBreak())
 
-    # ---------- 18. References ----------
     story.append(P("18. References", h1))
     ref_items = [
         "Jurafsky, D. and J. H. Martin. Speech and Language Processing (3rd ed. draft). Course reference "
@@ -942,7 +976,6 @@ def build_report(output_path: Path):
 
     story.append(Spacer(1, 10))
 
-    # ---------- 19. Conclusion ----------
     story.append(P("19. Conclusion", h1))
     story.append(P(
         "I believe the system meets the requirements I was given: it accepts voice or text input, "

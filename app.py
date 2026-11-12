@@ -492,5 +492,3 @@ with st.expander("Cultural Heritage Knowledge Graph & DBpedia Ground Truth Catal
             )
 
 
-
-
