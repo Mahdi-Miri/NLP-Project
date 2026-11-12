@@ -91,9 +91,9 @@ def build_pipeline_graphviz_vertical():
     ))
 
     dot.node("asr", box(
-        ["OpenAI Whisper, 'small' checkpoint, local",
+        ["OpenAI Whisper, 'medium' checkpoint, local",
          "16 kHz mono, peak-normalized audio",
-         "Domain prompt biases decoding",
+         "Domain prompt biases decoding, beam_size=1",
          "src/speech/asr.py  (voice input only)"],
         "2. Speech Recognition",
     ))
@@ -108,6 +108,7 @@ def build_pipeline_graphviz_vertical():
 
     dot.node("entities", box(
         ["Artwork / artist / location keyword match",
+         "src/dialogue/chatbot.py",
          "Pronoun resolution against dialogue state",
          "('it', 'he', 'there' -> active entity)",
          "src/dialogue/state_tracker.py"],
@@ -180,8 +181,8 @@ def build_pipeline_graphviz_vertical():
     dot.edge("cache", "graph", label="  populates", style="dotted", color="#777777", constraint="false")
 
     output_base = str(docs_dir / "pipeline_architecture")
-    dot.render(output_base, format="png", cleanup=False)
-    print(f"Graphviz pipeline diagram written to: {output_base}.png and {output_base}")
+    dot.render(output_base, format="png", cleanup=True)
+    print(f"Graphviz pipeline diagram written to: {output_base}.png")
 
 
 if __name__ == "__main__":

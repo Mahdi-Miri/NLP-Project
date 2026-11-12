@@ -303,9 +303,11 @@ def build_report(output_path: Path):
         draw_w, draw_h = iw * scale, ih * scale
         story.append(Image(str(diagram_path), width=draw_w, height=draw_h, hAlign="CENTER"))
         story.append(P(
-            "Figure 1. The system's per-turn processing pipeline (right) and the one-time knowledge-graph "
-            "setup step (left, dashed box) that feeds it. Each box names the source file responsible for "
-            "that stage.",
+            "Figure 1. The per-turn pipeline (ten numbered steps, top to bottom), plus the one-time "
+            "setup (dashed box, left) that populates the graph before any conversation happens. A turn "
+            "forks at step 1 depending on whether it arrived as voice or text, and forks again at step "
+            "5: a caught inconsistency skips the graph lookup and goes straight to a corrective reply. "
+            "Each box names the source file responsible for that stage.",
             caption_style,
         ))
         story.append(PageBreak())
