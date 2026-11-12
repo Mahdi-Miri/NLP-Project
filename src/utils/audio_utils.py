@@ -39,7 +39,7 @@ def load_and_normalize_audio(file_path_or_bytes: Any, target_sr: int = 16000) ->
 
     except Exception as exc:
         logger.error("Failed to load and normalize audio: %s", exc)
-        return np.zeros(target_sr, dtype=np.float32), target_sr
+        return np.zeros(0, dtype=np.float32), target_sr
 
 
 def save_audio_to_temp_wav(audio_bytes: bytes) -> str:

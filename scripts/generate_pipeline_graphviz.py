@@ -125,7 +125,7 @@ def build_pipeline_graphviz_vertical():
     dot.node("graph", box(
         ["(:Artist)-[:PAINTED]->(:Artwork)",
          "-[:LOCATED_AT]->(:Location)-[:IN_CITY]->(:City)",
-         "Neo4j (primary) / SQLite (fallback)",
+         "Neo4j (Docker, no fallback)",
          "src/data_pipeline/graph_db.py"],
         "6. Knowledge Graph Lookup",
     ))

@@ -1,57 +1,56 @@
 # Neapolitan Artistic Heritage Speech Dialogue System
 ### Caravaggio & Battistello Caracciolo in Naples, Italy
 
-An intelligent, speech-enabled conversational agent acting as an authoritative cultural guide for Neapolitan artistic heritage. The system enables voice and text inquiries concerning masterpieces by **Michelangelo Merisi da Caravaggio** and **Battistello Caracciolo (Giovanni Battista Caracciolo)** that can be visited in the urban area of Naples.
+A speech chatbot that answers questions about works by **Caravaggio** and **Battistello Caracciolo** that you can actually go see in Naples. You can talk to it or type, and it talks back.
 
-Foundational domain knowledge is acquired dynamically through semantic **SPARQL queries on DBpedia** and modeled in a **Graph Database (Neo4j / SQLite)**. The system actively detects factual, geographical, and attribution inconsistencies in user inquiries while maintaining dialogue state and discourse memory across multi-turn interactions.
+The knowledge it answers from comes from **SPARQL queries on DBpedia**, loaded into a **Neo4j graph database**. It also tries to catch when a question gets something wrong — wrong artist, wrong museum, wrong city — and corrects it instead of just answering along, and it remembers what you were just talking about across a few turns.
 
 ---
 
-## System Architecture Pipeline
+## How it fits together
 
-The following graph illustrates the complete end-to-end dataflow, from voice acquisition and semantic ingestion to inconsistency reasoning and speech synthesis:
+Voice or text comes in, gets turned into a graph lookup, checked for mistakes, and answered out loud:
 
 ```mermaid
 flowchart TD
     %% User Layer
-    subgraph UI ["User Interface Layer"]
-        UserVoice["Microphone Audio Input"]
-        UserText["Text Query Input"]
-        Dashboard["Web Dashboard (Streamlit) / Terminal CLI"]
+    subgraph UI ["Interface"]
+        UserVoice["Microphone"]
+        UserText["Typed question"]
+        Dashboard["Streamlit app / terminal CLI"]
     end
 
     %% ASR Layer
-    subgraph ASR ["Automatic Speech Recognition (ASR)"]
-        AudioProc["Audio Normalization & Resampling (16 kHz Float32)"]
-        Whisper["OpenAI Whisper Model (Local Offline Inference)"]
-        Transcript["Transcribed Text Utterance"]
+    subgraph ASR ["Speech-to-text"]
+        AudioProc["Normalize & resample audio (16 kHz)"]
+        Whisper["Whisper (runs locally)"]
+        Transcript["Text"]
     end
 
     %% Data Pipeline Layer
-    subgraph Pipeline ["Semantic Data Pipeline"]
-        DBpedia["DBpedia SPARQL Endpoint (https://dbpedia.org/sparql)"]
-        SPARQLClient["SPARQL Client & Ingestion Engine"]
-        Cache["Corpus Snapshot Cache (dbpedia_cache.json)"]
+    subgraph Pipeline ["Getting the facts"]
+        DBpedia["DBpedia SPARQL endpoint"]
+        SPARQLClient["SPARQL client"]
+        Cache["Local cache (dbpedia_cache.json)"]
     end
 
     %% Knowledge Graph Layer
-    subgraph Graph ["Graph Database (Dual Engine)"]
-        Neo4jStore["Neo4j Graph Store (Cypher Engine)"]
-        SQLiteStore["Local Embedded Graph Store (SQLite)"]
-        Schema["Graph Schema:<br/>(:Artist)-[:PAINTED]->(:Artwork)<br/>(:Artwork)-[:LOCATED_AT]->(:Location)<br/>(:Location)-[:IN_CITY]->(:City)"]
+    subgraph Graph ["Graph database"]
+        Neo4jStore["Neo4j (Cypher, in Docker)"]
+        Schema["(:Artist)-[:PAINTED]->(:Artwork)<br/>(:Artwork)-[:LOCATED_AT]->(:Location)<br/>(:Location)-[:IN_CITY]->(:City)"]
     end
 
     %% Dialogue & Reasoning Layer
-    subgraph Dialogue ["Dialogue Management & Reasoning"]
-        StateTracker["Dialogue State Tracker (Memory & Coreference)"]
-        Inconsistency["Inconsistency Detection Engine<br/>- Artist Attribution Mismatch<br/>- Naples Venue Mismatch<br/>- City / Geographic Mismatch<br/>- Out-of-Scope Artists"]
-        Generator["Knowledge-Grounded Response Generator"]
+    subgraph Dialogue ["Dialogue logic"]
+        StateTracker["What we're currently talking about"]
+        Inconsistency["Catching wrong claims<br/>- wrong artist<br/>- wrong venue<br/>- wrong city<br/>- artist out of scope"]
+        Generator["Writing the answer"]
     end
 
     %% TTS Layer
-    subgraph TTS ["Speech Synthesis (TTS)"]
-        Synthesizer["Text-to-Speech Engine (Edge-TTS / pyttsx3)"]
-        AudioResponse["Synthesized Audio Playback"]
+    subgraph TTS ["Text-to-speech"]
+        Synthesizer["Edge-TTS (or pyttsx3 offline)"]
+        AudioResponse["Spoken reply"]
     end
 
     %% Flow Connections
@@ -63,19 +62,15 @@ flowchart TD
     DBpedia --> SPARQLClient
     SPARQLClient --> Cache
     Cache --> Neo4jStore
-    Cache --> SQLiteStore
     Neo4jStore --- Schema
-    SQLiteStore --- Schema
 
     Transcript --> StateTracker
     StateTracker --> Inconsistency
-    Neo4jStore -. Schema Validation .- Inconsistency
-    SQLiteStore -. Schema Validation .- Inconsistency
+    Neo4jStore -. checks against .- Inconsistency
 
     Inconsistency --> Generator
-    Neo4jStore -. Ground Truth Facts .- Generator
-    SQLiteStore -. Ground Truth Facts .- Generator
-    StateTracker -. Active Context .- Generator
+    Neo4jStore -. facts .- Generator
+    StateTracker -. context .- Generator
 
     Generator --> Synthesizer
     Synthesizer --> AudioResponse
@@ -85,41 +80,40 @@ flowchart TD
 
 ---
 
-## Core Capabilities
+## What it actually does
 
-### 1. Dynamic SPARQL Knowledge Acquisition
-- Executes semantic queries against the official DBpedia endpoint (`https://dbpedia.org/sparql`).
-- Retrieves RDF triples for artwork entities, painter biographical periods, museum locations, and descriptions.
-- Synchronizes with a structured graph database supporting both Neo4j (via Cypher) and a standalone embedded SQLite graph engine.
+### 1. Pulls its own data from DBpedia
+- Queries the public DBpedia SPARQL endpoint directly — nothing is hand-copied from Wikipedia.
+- Gets artwork details, artist background, and museum info this way.
+- All of it goes into Neo4j, which is the only place the chatbot reads from (no local fallback database).
 
-### 2. Inconsistency and Contradiction Detection
-The system inspects every user inquiry against graph ground truth to identify and correct misconceptions:
-- **Artist Attribution Contradictions:** e.g., attributing *The Seven Works of Mercy* (Caravaggio) to Battistello Caracciolo, or *The Liberation of Saint Peter* (Battistello) to Caravaggio.
-- **Naples Location Mismatches:** e.g., claiming *The Seven Works of Mercy* is at Capodimonte rather than *Pio Monte della Misericordia*.
-- **Geographic Mismatches (Out of Naples):** e.g., asking to see Caravaggio's Roman works (*The Calling of Saint Matthew*, *Judith Beheading Holofernes*) or Florentine works (*Bacchus*) in Naples.
-- **Out-of-Scope Artists:** Polite boundary enforcement for figures outside the Neapolitan Caravaggesque focus (e.g., Leonardo da Vinci, Raphael, Picasso).
+### 2. Catches wrong claims instead of just going along with them
+It checks what you say against the graph and pushes back if something's off:
+- **Wrong artist:** e.g. saying Battistello painted *The Seven Works of Mercy* (that's Caravaggio's).
+- **Wrong museum:** e.g. saying *The Seven Works of Mercy* is at Capodimonte instead of Pio Monte della Misericordia.
+- **Wrong city:** asking about Caravaggio's Roman or Florentine works as if they were in Naples.
+- **Out-of-scope artists:** politely says it only covers Caravaggio and Battistello, not Leonardo, Raphael, Picasso, etc.
 
-### 3. Dialogue State Tracking & Multi-Turn Memory
-- Tracks active artistic focus: `active_artist`, `active_artwork`, `active_location`, and `turn_counter`.
-- Resolves anaphoric pronouns (`it`, `its dimensions`, `who painted it?`, `where is it located?`, `what else is there?`) to maintain natural discourse continuity.
+### 3. Remembers what you were just talking about
+If you say "who painted it?" or "where is it?" right after asking about a specific painting, it knows what "it" means — no need to repeat the title every time.
 
-### 4. Multimodal Speech Processing
-- **ASR (Speech-to-Text):** Powered by OpenAI Whisper (`base` model), performing local float32 audio transcription without external network requests or API keys.
-- **TTS (Text-to-Speech):** Synthesizes natural spoken responses using neural Edge-TTS with offline `pyttsx3` fallback.
+### 4. Speaks and listens
+- **Speech-to-text:** OpenAI Whisper (`medium` model), running locally, no API key needed. The technical report covers how I tuned it on my own accented voice, and a comparison against Groq's free hosted Whisper API.
+- **Text-to-speech:** Edge-TTS, with an offline `pyttsx3` fallback if that's unavailable.
 
 ---
 
-## Catalog of Artworks in Naples
+## The catalog
 
 ### Caravaggio in Naples
-| Artwork Title | Year | Location / Venue | Medium |
+| Artwork | Year | Where | Medium |
 |---|:---:|---|---|
 | **The Seven Works of Mercy** | 1607 | Pio Monte della Misericordia (Via dei Tribunali 253) | Oil on canvas |
 | **The Flagellation of Christ** | 1607 | Museo Nazionale di Capodimonte (Via Miano 2) | Oil on canvas |
 | **The Martyrdom of Saint Ursula** | 1610 | Gallerie d'Italia, Palazzo Zevallos (Via Toledo 185) | Oil on canvas |
 
 ### Battistello Caracciolo in Naples
-| Artwork Title | Year | Location / Venue | Medium |
+| Artwork | Year | Where | Medium |
 |---|:---:|---|---|
 | **The Liberation of Saint Peter** | 1615 | Pio Monte della Misericordia (Via dei Tribunali 253) | Oil on canvas |
 | **The Washing of the Feet** | 1622 | Certosa di San Martino (Largo San Martino 5) | Oil on canvas |
@@ -129,84 +123,100 @@ The system inspects every user inquiry against graph ground truth to identify an
 
 ---
 
-## Quick Start & Execution
+## Running it
 
-### Prerequisites
-- Python 3.10+ (macOS / Linux / Windows)
-- Virtual environment:
+### You'll need
+- Python 3.10+
+- Docker, with a Neo4j container called `neo4j-nlp` (create it once with
+  `docker run -d --name neo4j-nlp -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/password neo4j:latest`).
+  There's no fallback — the app won't start without Neo4j reachable at `bolt://localhost:7687`.
+- A virtual environment:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 1. Ingest Data & Build Graph
-To query DBpedia via SPARQL and populate the graph store:
+### Fastest way: one command
 ```bash
+./run.sh
+```
+This starts the `neo4j-nlp` container if it's not already running, waits for it to be ready, then launches the app.
+
+### Doing it step by step instead
+
+Build the graph (pulls from DBpedia and loads Neo4j):
+```bash
+docker start neo4j-nlp   # if it's not already running
 .venv/bin/python scripts/build_graph.py
 ```
 
-### 2. Launch the Web Application
-Start the light-mode Streamlit speech dialogue interface:
+Launch the web app:
 ```bash
 .venv/bin/streamlit run app.py --server.port 8502
 ```
-Access the application at `http://localhost:8502`.
+Then open `http://localhost:8502`.
 
-### 3. Run the Interactive CLI
-For terminal-based conversational evaluation:
+Or use the terminal instead of the browser:
 ```bash
 .venv/bin/python scripts/interactive_cli.py
 ```
 
-### 4. Run the 150-Test Benchmark Suite
-Execute the full academic stress test suite covering all inconsistency categories:
-```bash
-.venv/bin/python tests/stress_test_150.py
-```
-
-### 5. Run Unit Tests (Pytest)
+Run the tests:
 ```bash
 .venv/bin/pytest tests/
+.venv/bin/python tests/stress_test_150.py   # 150-case stress benchmark
 ```
 
 ---
 
-## Project Structure
+## Where everything is
 
 ```
 NLP-Project/
-├── app.py                         # Streamlit Light-Mode UI (Voice, Chat, State, Graph, Inspector)
+├── app.py                         # The Streamlit app
+├── run.sh                         # One-command launch (starts Neo4j if needed)
+├── TECHNICAL_REPORT.pdf           # The project report
+├── presentation.pptx              # Slide deck
+├── requirements.txt
 ├── config/
-│   └── settings.py                # System settings (SPARQL, Neo4j, ASR, TTS, paths)
+│   └── settings.py                # SPARQL, Neo4j, ASR, TTS settings
 ├── docs/
-│   ├── pipeline_architecture.md   # Comprehensive pipeline graph and architectural specification
-│   └── pipeline_graph.html        # Interactive standalone HTML diagram
+│   └── pipeline_architecture.png  # Diagram used in the report
 ├── src/
 │   ├── data_pipeline/
-│   │   ├── curated_dataset.py     # Authoritative Neapolitan masterworks & ground-truth entities
-│   │   ├── sparql_client.py       # DBpedia SPARQL Wrapper (fetches and enriches RDF triples)
-│   │   └── graph_db.py            # Dual Graph Engine (Neo4j Cypher + Standalone Local SQLite)
+│   │   ├── curated_dataset.py     # The artworks/artists/venues this project covers
+│   │   ├── sparql_client.py       # Talks to DBpedia
+│   │   └── graph_db.py            # Talks to Neo4j
 │   ├── dialogue/
-│   │   ├── inconsistency.py       # Contradiction Detection Engine (Attribution, Venue, City, Scope)
-│   │   ├── state_tracker.py       # Multi-Turn Dialogue State & Discourse Coreference Tracker
-│   │   └── chatbot.py             # Knowledge-Grounded Conversational Dialogue Manager
+│   │   ├── inconsistency.py       # Catches wrong claims
+│   │   ├── state_tracker.py       # Remembers what we're talking about
+│   │   └── chatbot.py             # Puts it all together into a reply
 │   ├── speech/
-│   │   ├── asr.py                 # OpenAI Whisper ASR (robust float32 audio transcription)
-│   │   ├── tts.py                 # Neural Edge-TTS Synthesizer with Offline pyttsx3 Fallback
-│   │   └── speech_chatbot.py      # Unified Multimodal Voice Pipeline (Audio in -> Audio out)
+│   │   ├── asr.py                 # Whisper speech-to-text
+│   │   ├── tts.py                 # Edge-TTS / pyttsx3 text-to-speech
+│   │   └── speech_chatbot.py      # Glues ASR + chatbot + TTS together
 │   └── utils/
-│       └── audio_utils.py         # Audio normalization, resampling (16kHz mono), and format converters
+│       └── audio_utils.py         # Audio loading, resampling, normalizing
 ├── scripts/
-│   ├── build_graph.py             # Automated graph population and verification script
-│   └── interactive_cli.py         # Terminal-based conversational evaluation interface
+│   ├── build_graph.py             # Loads DBpedia data into Neo4j
+│   ├── interactive_cli.py         # Chat from the terminal
+│   ├── generate_pdf_report.py     # Builds TECHNICAL_REPORT.pdf
+│   ├── generate_pipeline_diagram.py  # Builds docs/pipeline_architecture.png
+│   ├── tune_asr_hyperparams.py    # Whisper hyperparameter sweep on real recordings
+│   ├── benchmark_asr_models.py    # Whisper model-size comparison
+│   ├── benchmark_groq_vs_local.py # Local Whisper vs. Groq's free cloud Whisper API
+│   └── accent_calibration_panel.py # A small Streamlit tool for recording test sentences
 ├── tests/
-│   ├── conftest.py                # Pytest path and environment fixtures
-│   ├── test_dialogue.py           # Multi-turn conversation and pronoun resolution tests
-│   ├── test_inconsistency.py      # Automated tests for all inconsistency types
-│   └── stress_test_150.py         # 150-test comprehensive stress benchmark suite
+│   ├── conftest.py
+│   ├── test_dialogue.py           # Multi-turn conversation & pronoun resolution
+│   ├── test_inconsistency.py      # Every inconsistency type
+│   ├── test_asr.py                # Word Error Rate tests
+│   └── stress_test_150.py         # 150-case stress benchmark
 └── data/
-    ├── dbpedia_cache.json         # Cached snapshot of DBpedia RDF query results
-    ├── neapolitan_art_graph.db    # Embedded SQLite knowledge graph
-    └── stress_test_report_150.json# Detailed JSON benchmark results
+    ├── dbpedia_cache.json         # Cached DBpedia results
+    ├── accent_test_samples/       # 10 recordings of my own voice, used for ASR tuning
+    └── stress_test_report_150.json
 ```
+
+Neo4j isn't a file here — it's a Docker container (`neo4j-nlp`), see **Running it** above.

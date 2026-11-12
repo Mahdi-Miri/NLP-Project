@@ -1,10 +1,20 @@
 import pytest
+from src.data_pipeline.graph_db import NeapolitanArtGraph
+from src.data_pipeline.sparql_client import DBpediaSPARQLClient
 from src.dialogue.chatbot import NeapolitanArtChatbot
 
 
+@pytest.fixture(scope="module")
+def graph_instance():
+    graph = NeapolitanArtGraph()
+    corpus = DBpediaSPARQLClient().fetch_neapolitan_corpus(force_refresh=False)
+    graph.populate(corpus)
+    return graph
+
+
 @pytest.fixture
-def bot():
-    return NeapolitanArtChatbot()
+def bot(graph_instance):
+    return NeapolitanArtChatbot(graph=graph_instance)
 
 
 def test_single_turn_artwork_inquiry(bot):

@@ -21,3 +21,7 @@ streamlit>=1.34.0
 
 # Testing
 pytest>=8.0.0
+
+# ASR benchmarking (Groq cloud API comparison)
+groq>=0.11.0
+python-dotenv>=1.0.0

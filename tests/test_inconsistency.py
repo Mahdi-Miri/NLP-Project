@@ -59,6 +59,32 @@ def test_michelangelo_merisi_is_not_flagged_as_out_of_scope(detector):
     assert report.is_inconsistent is False
 
 
+def test_michelangelo_da_caravaggio_without_merisi_is_not_flagged(detector):
+    report = detector.detect_inconsistencies(
+        "Tell me about Michelangelo da Caravaggio's Seven Works of Mercy."
+    )
+    assert report.is_inconsistent is False
+
+
+def test_real_michelangelo_mentioned_far_from_caravaggio_is_still_flagged(detector):
+    report = detector.detect_inconsistencies(
+        "Compare Michelangelo's Sistine Chapel ceiling with Caravaggio's Seven Works of Mercy."
+    )
+    assert report.is_inconsistent is True
+    assert report.inconsistency_type == InconsistencyType.OUT_OF_SCOPE_ARTIST
+    assert report.claimed_entity == "Michelangelo"
+
+
+def test_second_unrelated_michelangelo_mention_is_still_flagged(detector):
+    report = detector.detect_inconsistencies(
+        "Michelangelo Merisi da Caravaggio painted the Seven Works of Mercy, "
+        "and by the way Michelangelo also sculpted the David statue."
+    )
+    assert report.is_inconsistent is True
+    assert report.inconsistency_type == InconsistencyType.OUT_OF_SCOPE_ARTIST
+    assert report.claimed_entity == "Michelangelo"
+
+
 def test_which_painter_disambiguation_is_not_flagged(detector):
     report = detector.detect_inconsistencies(
         "Which painter, Caravaggio or Battistello, made the Seven Works of Mercy?"

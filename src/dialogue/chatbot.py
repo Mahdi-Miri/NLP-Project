@@ -246,11 +246,20 @@ class NeapolitanArtChatbot:
             loc_name = location["name"]
             addr = location.get("address", "Naples, Italy")
             desc = location.get("description", "")
+            established = location.get("established")
+            website = location.get("website")
             works_here = self.graph.get_artworks_by_location(loc_name)
 
             paragraphs = [
                 f"{loc_name} is located at {addr} in Naples. {desc}".strip()
             ]
+            extra_facts = []
+            if established:
+                extra_facts.append(f"established in {established}")
+            if extra_facts:
+                paragraphs.append(f"{loc_name} was " + " and ".join(extra_facts) + ".")
+            if website:
+                paragraphs.append(f"Official website: {website}")
             if works_here:
                 art_list = [f"'{w['title']}' by {w['artist']}" for w in works_here]
                 if len(works_here) == 1:
@@ -302,6 +311,9 @@ class NeapolitanArtChatbot:
                         f"He combined Caravaggio's dramatic tenebrism and chiaroscuro with refined Tuscan academic drawing."
                     )
                 paragraphs.append(bio)
+                training = artist_info.get("dbpedia_training")
+                if training:
+                    paragraphs.append(f"He trained under {training}, according to DBpedia biographical records.")
                 paragraphs.append(f"In the urban area of Naples, you can visit {len(artworks_by_artist)} of his cataloged works:")
             else:
                 paragraphs.append(f"You can visit {len(artworks_by_artist)} works by {artist} in the urban area of Naples:")

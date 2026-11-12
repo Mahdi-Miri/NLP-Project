@@ -70,7 +70,10 @@ for cfg_name, cfg in CONFIGS.items():
         "avg_seconds": round(avg_time, 2) if avg_time is not None else None,
         "per_sentence": per_sentence,
     }
-    print(f"{cfg_name}: avg WER={avg_wer:.1f}%  avg time={avg_time:.2f}s", flush=True)
+    if avg_wer is None:
+        print(f"{cfg_name}: no recordings found, skipped", flush=True)
+    else:
+        print(f"{cfg_name}: avg WER={avg_wer:.1f}%  avg time={avg_time:.2f}s", flush=True)
 
 out_path = PROJECT_ROOT / "data" / "asr_hyperparam_tuning_results.json"
 out_path.write_text(json.dumps(results, indent=2))

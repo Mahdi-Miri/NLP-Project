@@ -273,7 +273,7 @@ def build_report(output_path: Path):
         body,
     ))
     story.append(P("• <b>Data acquisition</b> — a SPARQL client that queries DBpedia for the two artists, their works, and the venues, and caches the results locally.", bullet))
-    story.append(P("• <b>Knowledge graph</b> — a graph store, built on Neo4j with an embedded SQLite fallback, holding the catalog as (:Artist)-[:PAINTED]->(:Artwork)-[:LOCATED_AT]->(:Location)-[:IN_CITY]->(:City).", bullet))
+    story.append(P("• <b>Knowledge graph</b> — a Neo4j graph store, holding the catalog as (:Artist)-[:PAINTED]->(:Artwork)-[:LOCATED_AT]->(:Location)-[:IN_CITY]->(:City).", bullet))
     story.append(P("• <b>Dialogue engine</b> — entity extraction, coreference resolution, an inconsistency checker, and a response generator, all working against the graph.", bullet))
     story.append(P("• <b>Speech layer</b> — Whisper for transcription on the way in, Edge-TTS (with an offline pyttsx3 fallback) for synthesis on the way out.", bullet))
     story.append(P(
@@ -347,7 +347,7 @@ def build_report(output_path: Path):
     ))
 
     # ---------- 5. Knowledge graph ----------
-    story.append(P("5. Knowledge Graph: Neo4j with a Local Fallback", h1))
+    story.append(P("5. Knowledge Graph: Neo4j", h1))
     story.append(P(
         "The graph schema is simple: an Artist node points to the Artworks they painted, each Artwork "
         "points to the Location that houses it, and each Location points to its City. Artworks also "
@@ -357,28 +357,35 @@ def build_report(output_path: Path):
         body,
     ))
     story.append(P(
-        "<b>Why two backends.</b> The assignment specifies Neo4j, so I built the primary store "
-        "(<font face='Courier'>Neo4jGraphStore</font> in <font face='Courier'>src/data_pipeline/"
-        "graph_db.py</font>) to talk to it over the Bolt protocol with proper Cypher MERGE statements "
-        "and uniqueness constraints on artist names, artwork titles, and location names. But developing "
-        "and testing against a database server I had to start separately was slow and easy to forget, "
-        "and I didn't want anyone running my test suite to need a Neo4j instance just to see that the "
-        "dialogue logic works. So I also mirrored the same graph into an embedded SQLite store "
-        "(<font face='Courier'>LocalGraphStore</font>), using a generic two-table node/edge layout with "
-        "JSON-encoded properties, that requires no setup at all. At startup, "
-        "<font face='Courier'>NeapolitanArtGraph</font> tries to connect to Neo4j first and only falls "
-        "back to SQLite if that connection fails, so the dual-backend design is a convenience for "
-        "development and automated testing, not a way of avoiding the actual requirement.",
+        "<b>From a dual-backend convenience to a committed Neo4j deployment.</b> The assignment "
+        "specifies Neo4j, so the primary store (<font face='Courier'>Neo4jGraphStore</font> in "
+        "<font face='Courier'>src/data_pipeline/graph_db.py</font>) talks to it over the Bolt protocol "
+        "with proper Cypher MERGE statements and uniqueness constraints on artist names, artwork titles, "
+        "and location names. Earlier in development I also mirrored the same graph into an embedded "
+        "SQLite store as a convenience, so the test suite and local development didn't need a database "
+        "server running. A later review turned up a real problem with that arrangement: only one read "
+        "method (<font face='Courier'>get_all_artworks</font>) actually queried Neo4j when it was the "
+        "active backend — every other read (locations, artists, lookup-by-title) silently went to SQLite "
+        "regardless of which backend was supposedly active, and <font face='Courier'>populate()</font> "
+        "wrote to both stores unconditionally, so SQLite always held a live shadow copy of the data even "
+        "when Neo4j was \"in use.\" Rather than patch this into a correct but still dual-maintained "
+        "system, I removed the SQLite path entirely: <font face='Courier'>LocalGraphStore</font> is gone, "
+        "every read method now queries Neo4j directly, and <font face='Courier'>NeapolitanArtGraph</font> "
+        "raises a clear <font face='Courier'>ConnectionError</font> if Neo4j isn't reachable rather than "
+        "silently degrading to a different store. Neo4j now runs in a Docker container "
+        "(<font face='Courier'>neo4j-nlp</font>), and <font face='Courier'>run.sh</font> starts that "
+        "container automatically if it isn't already up before launching the app.",
         body,
     ))
     story.append(P(
-        "I verified this directly while preparing this report: with a Neo4j 5.15 instance running "
-        "locally (via Docker, bound to the standard ports 7474/7687), running the graph-build script "
-        "reports <font face='Courier'>Active backend: NEO4J</font>, and a Cypher query against the live "
+        "I verified this directly while preparing this report: with the Neo4j 5.15 container running "
+        "(bound to the standard ports 7474/7687), running the graph-build script reports "
+        "<font face='Courier'>Active backend: NEO4J</font>, and a Cypher query against the live "
         "database confirms all eight (:Artist)-[:PAINTED]->(:Artwork)-[:LOCATED_AT]->(:Location)-"
-        "[:IN_CITY]->(:City) paths resolve correctly. Without a Neo4j instance available, the same code "
-        "path falls back to SQLite and the chatbot continues to work identically from the user's point "
-        "of view — the backend choice is invisible to the dialogue layer above it.",
+        "[:IN_CITY]->(:City) paths resolve correctly. Stopping the container and re-instantiating "
+        "<font face='Courier'>NeapolitanArtGraph</font> now raises the expected connection error "
+        "instead of quietly falling back to a different database — there is no SQLite file left on disk "
+        "to fall back to.",
         body,
     ))
 
@@ -499,6 +506,31 @@ def build_report(output_path: Path):
         "<font face='Courier'>beam_size=1</font>, the domain prompt, and the temperature-fallback "
         "schedule enabled as a safety net for harder audio, even though it made no measurable difference "
         "on this particular ten-sentence set.",
+        body,
+    ))
+    story.append(P(
+        "<b>A cloud ASR comparison: free hosted Whisper via Groq.</b> With the hyperparameter sweep "
+        "saturated on accuracy, I ran a separate experiment "
+        "(<font face='Courier'>scripts/benchmark_groq_vs_local.py</font>) to see whether a free cloud "
+        "API could beat the local setup on latency without giving up much accuracy. Groq hosts Whisper "
+        "<font face='Courier'>large-v3</font> and a faster <font face='Courier'>large-v3-turbo</font> "
+        "variant for free — a recurring daily quota rather than a one-time trial credit — and markets "
+        "itself specifically on inference speed. I sent the same ten recordings, the same domain prompt, "
+        "and the same WER metric used throughout this section to both Groq models and compared them "
+        "against the deployed local <font face='Courier'>medium</font> configuration, repeating the run "
+        "three times to check it wasn't a network fluke: the local model and "
+        "<font face='Courier'>large-v3</font> landed on the exact same WER (15.0% and 16.8%) in all "
+        "three runs, while <font face='Courier'>turbo</font> was the only configuration that moved "
+        "between runs (26.1%-27.4%), which I attribute to server-side batching rather than anything in "
+        "the audio. <font face='Courier'>large-v3</font> came within 1.8 points of the local model's "
+        "accuracy while running about four times faster end-to-end over the network (roughly 0.45 s "
+        "versus 1.85 s per query); <font face='Courier'>turbo</font> was fastest of all but gave up too "
+        "much accuracy on this project's dense proper-noun vocabulary (Battistello Caracciolo, Certosa "
+        "di San Martino) to be worth it. I kept the local <font face='Courier'>medium</font> model as "
+        "the deployed default, since accuracy on exactly that vocabulary is what the system is judged "
+        "on and it needs no network call, but <font face='Courier'>large-v3</font> is a credible "
+        "candidate if this project ever needs to serve several concurrent users over a network, where "
+        "the 4x latency advantage would start to matter more than the last two points of WER.",
         body,
     ))
     story.append(P(
@@ -661,13 +693,15 @@ def build_report(output_path: Path):
         body,
     ))
     story.append(P(
-        "<b>Keeping SQLite as more than a toy fallback.</b> Early on, the SQLite backend was a quick "
-        "stand-in so I could develop the dialogue logic without a database server running. I kept it in "
-        "the final design because it turned out to be useful beyond convenience: my automated test suite "
-        "runs against it directly, which means CI-style testing doesn't depend on an external service "
-        "being reachable. I kept the schema close to the Neo4j one (nodes-and-edges rather than a "
-        "bespoke relational layout) specifically so the two stores couldn't drift apart in what they "
-        "represent, even though their storage mechanics are completely different.",
+        "<b>Dropping the SQLite fallback.</b> Early on, an embedded SQLite backend was a quick "
+        "stand-in so I could develop and test the dialogue logic without a database server running. "
+        "I removed it for the reasons explained in Section 5: it had silently become the backend that "
+        "most read queries actually used, even when Neo4j was supposedly active, which is exactly the "
+        "kind of drift a convenience fallback should never be allowed to cause. The test suite now runs "
+        "directly against the same Neo4j container (<font face='Courier'>neo4j-nlp</font>) used for "
+        "development and the live demo, started automatically by <font face='Courier'>run.sh</font> if "
+        "it isn't already up, so there is a single source of truth instead of two stores that could "
+        "drift apart in what they represent.",
         body,
     ))
 
@@ -682,8 +716,10 @@ def build_report(output_path: Path):
         "<font face='Courier'>tests/test_asr.py</font>) covering the basic behaviors — single-turn "
         "artwork queries, multi-turn coreference, each inconsistency category, the no-false-positive "
         "case, and the Word Error Rate metric from Section 8 (both as a unit test against the textbook's "
-        "worked example and end-to-end against a real Whisper transcription), plus six regression tests "
-        "added after the adversarial testing described in Section 13. All 17 tests pass.",
+        "worked example and end-to-end against a real Whisper transcription), plus nine regression tests "
+        "added after the adversarial testing described in Section 13 — six for the negation and "
+        "out-of-scope-artist bugs, and three more from a follow-up review that caught an overly broad "
+        "and then an overly narrow fix to the same Michelangelo/Caravaggio exemption. All 20 tests pass.",
         body,
     ))
     story.append(P(
@@ -709,12 +745,18 @@ def build_report(output_path: Path):
     ]
     story.append(styled_table(perf_rows, [280, 94, 94]))
     story.append(P(
-        "On timing: the full 150-query suite runs against the graph in well under a second — about 0.14 "
-        "s end-to-end (roughly 0.95 ms per query) when backed by the embedded SQLite store, and about "
-        "0.78 s (roughly 5.2 ms per query) when backed by a live Neo4j instance, since every query "
-        "there crosses the network stack over Bolt. These numbers only cover the text-based dialogue "
-        "logic; ASR and TTS were verified to work correctly but were not put through a formal timing "
-        "benchmark, since the point of this project is accuracy of the reasoning, not raw throughput.",
+        "On timing: the full 150-query suite now runs against the live Neo4j instance in well under "
+        "0.1 s end-to-end (roughly 0.6 ms per query). It was slower in an earlier version of this "
+        "pipeline — about 7.3 ms per query — because removing the SQLite fallback (Section 5) initially "
+        "meant every single lookup re-ran the full <font face='Courier'>MATCH (p:Artist)-[:PAINTED]-> "
+        "(a:Artwork)-[:LOCATED_AT]->(l:Location)</font> query over Bolt, and a single dialogue turn can "
+        "trigger that lookup five or six times (once each from entity extraction, inconsistency "
+        "checking, and response generation). Caching that query's result on the "
+        "<font face='Courier'>NeapolitanArtGraph</font> instance and invalidating it only on "
+        "<font face='Courier'>populate()</font> brought it back down to roughly one real network round "
+        "trip per turn. These numbers only cover the text-based dialogue logic; ASR and TTS were "
+        "verified to work correctly but were not put through a formal timing benchmark, since the point "
+        "of this project is accuracy of the reasoning, not raw throughput.",
         body,
     ))
     story.append(P(
@@ -783,7 +825,7 @@ def build_report(output_path: Path):
         "project beyond what could be properly tested in the time available:",
         body,
     ))
-    story.append(P("• <b>Larger catalog.</b> I was given the option of extending the project to other artists or cities; the architecture (SPARQL ingestion → dual graph store → rule-based dialogue) would carry over, but the entity-matching rules in Sections 6–7 would need to move toward fuzzy or embedding-based matching once title collisions become likely across a bigger catalog.", bullet))
+    story.append(P("• <b>Larger catalog.</b> I was given the option of extending the project to other artists or cities; the architecture (SPARQL ingestion → Neo4j graph → rule-based dialogue) would carry over, but the entity-matching rules in Sections 6–7 would need to move toward fuzzy or embedding-based matching once title collisions become likely across a bigger catalog.", bullet))
     story.append(P("• <b>Persistent, multi-user sessions.</b> Right now dialogue state lives in one process's memory. Saving state per browser session (Streamlit's <font face='Courier'>session_state</font>, or a lightweight database row keyed by session id) would let multiple visitors use the deployed app concurrently without stepping on each other's conversation history.", bullet))
     story.append(P("• <b>A statistical fallback for entity matching.</b> For queries that don't match any keyword pattern, a small sentence-embedding similarity search over artwork descriptions could catch paraphrases the rules miss, while keeping the rule-based path as the primary, auditable mechanism — a hybrid rather than a wholesale replacement.", bullet))
 
@@ -799,24 +841,25 @@ def build_report(output_path: Path):
     story.append(code(
         "python3 -m venv .venv && source .venv/bin/activate\n"
         "pip install -r requirements.txt\n\n"
-        "# Build the knowledge graph from DBpedia (falls back to SQLite\n"
-        "# automatically if no Neo4j instance is reachable on bolt://localhost:7687)\n"
+        "# Start Neo4j (required — there is no fallback); run.sh does this automatically\n"
+        "docker start neo4j-nlp\n\n"
+        "# Build the knowledge graph from DBpedia into Neo4j\n"
         "python scripts/build_graph.py\n\n"
-        "# Run the automated test suites\n"
+        "# Run the automated test suites (also require Neo4j to be running)\n"
         "pytest tests/\n"
         "python tests/stress_test_150.py\n\n"
-        "# Launch the web app, or the terminal CLI\n"
-        "streamlit run app.py --server.port 8502\n"
+        "# Launch the web app (starts Neo4j automatically if needed), or the terminal CLI\n"
+        "./run.sh\n"
         "python scripts/interactive_cli.py"
     ))
     story.append(P(
-        "To run against a real Neo4j instance rather than the SQLite fallback — as was done for "
-        "Section 5 of this report — start a Neo4j 5.x server reachable at "
-        "<font face='Courier'>bolt://localhost:7687</font> with the credentials in "
-        "<font face='Courier'>config/settings.py</font> (user <font face='Courier'>neo4j</font>, "
-        "password <font face='Courier'>password</font> by default) before running "
-        "<font face='Courier'>build_graph.py</font>; the script will report "
-        "<font face='Courier'>Active backend: NEO4J</font> once connected.",
+        "Neo4j must be reachable at <font face='Courier'>bolt://localhost:7687</font> with the "
+        "credentials in <font face='Courier'>config/settings.py</font> (user "
+        "<font face='Courier'>neo4j</font>, password <font face='Courier'>password</font> by default) "
+        "before running <font face='Courier'>build_graph.py</font>, the test suite, or the app — "
+        "<font face='Courier'>NeapolitanArtGraph</font> raises a <font face='Courier'>ConnectionError</font> "
+        "immediately if it isn't. I run it as a Docker container (<font face='Courier'>neo4j-nlp</font>), "
+        "and <font face='Courier'>run.sh</font> starts that container automatically if it is stopped.",
         body,
     ))
 
@@ -837,21 +880,29 @@ def build_report(output_path: Path):
     story.append(P("<b>Knowledge source and graph.</b> DBpedia is the data source — structured facts "
         "extracted from Wikipedia, reachable over a public SPARQL endpoint. "
         "<font face='Courier'>SPARQLWrapper</font> is the Python library I used to build and send those "
-        "SPARQL queries and parse the JSON bindings that come back. For storage, "
-        "<font face='Courier'>neo4j</font> (the official Python driver) talks to a real Neo4j 5.x server "
-        "over Bolt, which is the required backend; Python's built-in <font face='Courier'>sqlite3</font> "
-        "module backs the embedded fallback store with the same node/edge schema.",
+        "SPARQL queries and parse the JSON bindings that come back; fixing a URI scheme mismatch there "
+        "(DBpedia's RDF graph uses <font face='Courier'>http://</font> resource IRIs, not the "
+        "<font face='Courier'>https://</font> ones used for the display links) is what made artist "
+        "biography fields and artwork images/dimensions actually populate, instead of silently coming "
+        "back empty. For storage, <font face='Courier'>neo4j</font> (the official Python driver) talks "
+        "to a real Neo4j 5.x server over Bolt, running as a Docker container "
+        "(<font face='Courier'>neo4j-nlp</font>) — it is the only backend; there is no SQLite fallback.",
         body,
     ))
     story.append(P("<b>Speech.</b> <font face='Courier'>openai-whisper</font> runs ASR locally (the "
-        "<font face='Courier'>small</font> checkpoint). <font face='Courier'>soundfile</font> and "
+        "<font face='Courier'>medium</font> checkpoint, after the real-accent tuning in Section 8). "
+        "<font face='Courier'>soundfile</font> and "
         "<font face='Courier'>scipy.signal.resample</font> handle loading and resampling audio to 16 kHz "
         "before it reaches Whisper. For speech output, <font face='Courier'>edge-tts</font> calls "
         "Microsoft's neural voices over the network, with <font face='Courier'>pyttsx3</font> as an "
         "offline fallback that drives the host operating system's own synthesizer. One honest note: "
         "<font face='Courier'>sounddevice</font> is listed in requirements.txt from an earlier draft "
         "but isn't imported anywhere in the final code — microphone capture goes through Streamlit's "
-        "browser-based <font face='Courier'>st.audio_input</font> instead, so that dependency is unused.",
+        "browser-based <font face='Courier'>st.audio_input</font> instead, so that dependency is unused. "
+        "For the cloud ASR comparison in Section 8, <font face='Courier'>groq</font> (the official "
+        "Python SDK, OpenAI-compatible) calls the hosted Whisper models, with "
+        "<font face='Courier'>python-dotenv</font> loading the API key from a local, gitignored "
+        "<font face='Courier'>.env</font> file rather than hardcoding it.",
         body,
     ))
     story.append(P("<b>Interface and testing.</b> <font face='Courier'>streamlit</font> is the whole web "

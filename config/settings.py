@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 class PathSettings(BaseModel):
     project_root: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent)
     data_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent / "data")
-    local_db_path: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent / "data" / "neapolitan_art_graph.db")
 
 
 class SPARQLSettings(BaseModel):
@@ -19,8 +18,6 @@ class Neo4jSettings(BaseModel):
     user: str = "neo4j"
     password: str = "password"
     database: str = "neo4j"
-    # Backend selection: 'sqlite' (embedded standalone) or 'neo4j'
-    default_backend: str = "sqlite"
 
 
 class SpeechSettings(BaseModel):

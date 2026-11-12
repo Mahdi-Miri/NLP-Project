@@ -286,6 +286,8 @@ if "latest_audio_path" not in st.session_state:
     st.session_state.latest_audio_path = None
 if "latest_inconsistency" not in st.session_state:
     st.session_state.latest_inconsistency = None
+if "mic_widget_version" not in st.session_state:
+    st.session_state.mic_widget_version = 0
 
 client, graph, pipeline = load_system_pipeline()
 
@@ -317,7 +319,9 @@ with st.sidebar:
         st.session_state.latest_audio_path = None
         st.session_state.latest_inconsistency = None
         st.session_state.last_processed_audio_bytes = None
+        st.session_state.mic_widget_version += 1
         st.success("Dialogue context and entity memory cleared.")
+        st.rerun()
 
     if st.button("Re-sync DBpedia SPARQL", use_container_width=True):
         with st.spinner("Fetching latest RDF triples from DBpedia..."):
@@ -375,7 +379,10 @@ with col_state:
 with col_chat:
     st.markdown("### Spoken Voice & Text Inquiry")
 
-    mic_audio = st.audio_input("Record voice question via microphone:")
+    mic_audio = st.audio_input(
+        "Record voice question via microphone:",
+        key=f"mic_audio_{st.session_state.mic_widget_version}",
+    )
 
     user_text = st.text_input(
         "Or type your question directly:",
@@ -484,49 +491,6 @@ with st.expander("Cultural Heritage Knowledge Graph & DBpedia Ground Truth Catal
                 unsafe_allow_html=True,
             )
 
-    st.markdown("---")
-    st.markdown("#### Museum Venues in Naples")
-    venue_cols = st.columns(len(venues))
-    for idx, v in enumerate(venues):
-        with venue_cols[idx]:
-            v_source = v.get('source_url', '')
-            v_dbpedia = v.get('dbpedia_page', '')
-            st.markdown(
-                f"""
-                <div class="venue-card">
-                    <div class="venue-name">{v['name']}</div>
-                    <div class="venue-meta">{v.get('address', '')}</div>
-                    <div class="venue-meta"><strong>Preserved Works:</strong> {v.get('artwork_count', 0)}</div>
-                    <details class="art-details" style="margin-top: 6px; padding-top: 4px;">
-                        <summary>Venue References</summary>
-                        <div class="art-links-container" style="border-top: none; padding-top: 4px; margin-top: 2px;">
-                            <a href="{v_source}" target="_blank" rel="noopener noreferrer" class="art-link" style="padding:3px 8px; font-size:11px;">Wikipedia</a>
-                            <a href="{v_dbpedia}" target="_blank" rel="noopener noreferrer" class="art-link-secondary" style="padding:3px 8px; font-size:11px;">DBpedia</a>
-                        </div>
-                    </details>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
 
-    st.markdown("---")
-    with st.expander("SPARQL Query Specification (DBpedia Endpoint)"):
-        st.markdown("The foundational knowledge is obtained using standard SPARQL queries executed against DBpedia:")
-        st.code(
-            """
-PREFIX dbo: <http://dbpedia.org/ontology/>
-PREFIX dbr: <http://dbpedia.org/resource/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-
-SELECT ?artwork ?title ?museum ?abstract WHERE {
-    ?artwork dbo:author dbr:Caravaggio ;
-             rdfs:label ?title .
-    OPTIONAL { ?artwork dbo:museum ?museum }
-    OPTIONAL { ?artwork dbo:abstract ?abstract . FILTER(lang(?abstract) = 'en') }
-    FILTER (lang(?title) = 'en')
-} LIMIT 50
-            """,
-            language="sparql",
-        )
 
 

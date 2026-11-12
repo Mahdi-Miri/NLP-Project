@@ -105,12 +105,12 @@ def create_pipeline_diagram(output_path="docs/pipeline_architecture.png"):
         "Single-Page Accordion Layout"
     ])
 
-    draw_box(c1_x, 41, col_w, 22.5, "2. Acoustic Engineering", "Whisper Small (244M)", [
+    draw_box(c1_x, 41, col_w, 22.5, "2. Acoustic Engineering", "Whisper Medium (769M)", [
         "SoundFile Float32 Memory Array",
         "Peak Norm: 0.95 * x / max|x|",
         "80-Channel Log-Mel Filterbank",
         "Art-Historical Prompt Token Prior",
-        "Greedy / Beam Search (beam=5)"
+        "Greedy Decode (beam=1) + Temp. Fallback"
     ])
 
     draw_box(c1_x, 15, col_w, 21.5, "3. Phonetic Normalizer", "Lexical Regularization", [
@@ -168,12 +168,12 @@ def create_pipeline_diagram(output_path="docs/pipeline_architecture.png"):
         "Q5: Museum Venue Holdings (Site)"
     ])
 
-    draw_box(c3_x, 41, col_w, 22.5, "8. Dual Knowledge Graph", "Synchronized Stores (40v, 46e)", [
-        "Primary: Neo4j 5.x Cypher Engine",
-        "Fallback: Embedded SQLite 3 Store",
-        "Two-Table Indexed Relational Schema",
-        "Zero-Downtime Heartbeat Failover",
-        "1.97 ms Average Query Latency"
+    draw_box(c3_x, 41, col_w, 22.5, "8. Neo4j Knowledge Graph", "40 Nodes, 46 Relationships", [
+        "Neo4j 5.x Cypher Engine (Docker)",
+        "No Fallback Store — Required Backend",
+        "(:Artist)-[:PAINTED]->(:Artwork)-...",
+        "Bolt Protocol, Uniqueness Constraints",
+        "0.6 ms Average Query Latency (cached)"
     ])
 
     draw_box(c3_x, 15, col_w, 21.5, "9. DBpedia SPARQL Ingestion", "Linked Open Data Harvesting", [
@@ -210,7 +210,7 @@ def create_pipeline_diagram(output_path="docs/pipeline_architecture.png"):
     draw_box(c4_x, 15, col_w, 21.5, "12. Client Presentation UI", "Streamlit Single-Page Hub", [
         "Live Discourse State Card Display",
         "Native In-Browser Audio Player",
-        "Collapsible Knowledge Graph Accordion",
+        "Sidebar Catalog Statistics Panel",
         "HTML5 Details Provenance Cards",
         "Full Turn Transcript History"
     ])
@@ -230,8 +230,8 @@ def create_pipeline_diagram(output_path="docs/pipeline_architecture.png"):
     summary_rect = patches.Rectangle((3.5, 2.0), 93.0, 9.0, facecolor="#f8f9fa", edgecolor=c_dark, linewidth=1.0)
     ax.add_patch(summary_rect)
     ax.text(5.0, 8.5, "SYSTEM TELEMETRY, QUERY COMPLEXITY & EMPIRICAL BENCHMARK (150-TEST EVALUATION):", fontsize=6.8, fontweight='bold', color=c_dark)
-    ax.text(5.0, 5.8, "• Query Latency Breakdown: SQLite (0.9 ms) | Neo4j (2.1 ms) | Whisper ASR (280 ms) | Neural TTS (420 ms) | End-to-End Turn: ~700 ms", fontsize=6.1, color=c_dark)
-    ax.text(5.0, 3.6, "• Query Taxonomy: 2 SPARQL Ingestion Queries, 5 Cypher Subgraph Traversal Queries, 3 SQLite Indexed JOIN Queries, 5 Inconsistency Verification Predicates", fontsize=6.1, color=c_dark)
+    ax.text(5.0, 5.8, "• Query Latency Breakdown: Neo4j over Bolt, cached (0.6 ms) | Whisper ASR, medium, local (~1.9 s) | Neural TTS (420 ms)", fontsize=6.1, color=c_dark)
+    ax.text(5.0, 3.6, "• Query Taxonomy: 2 SPARQL Ingestion Queries, 5 Cypher Subgraph Traversal Queries, 5 Inconsistency Verification Predicates", fontsize=6.1, color=c_dark)
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, facecolor=c_white)

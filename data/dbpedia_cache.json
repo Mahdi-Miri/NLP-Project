@@ -12,7 +12,11 @@
       "birth_place": "Milan, Duchy of Milan",
       "death_place": "Porto Ercole, Grand Duchy of Tuscany",
       "neapolitan_periods": "First Neapolitan stay (1606-1607), Second Neapolitan stay (1609-1610)",
-      "significance": "Pivotal influence on Neapolitan Baroque through stark naturalism and violent contrast of light and shade."
+      "significance": "Pivotal influence on Neapolitan Baroque through stark naturalism and violent contrast of light and shade.",
+      "dbpedia_birth_date": "1571-09-29",
+      "dbpedia_death_date": "1610-07-18",
+      "dbpedia_birth_name": "Michelangelo Merisi (or Amerighi) da Caravaggio",
+      "dbpedia_training": "Simone Peterzano"
     },
     "Battistello Caracciolo": {
       "uri": "https://dbpedia.org/resource/Battistello_Caracciolo",
@@ -25,7 +29,11 @@
       "birth_place": "Naples, Kingdom of Naples",
       "death_place": "Naples, Kingdom of Naples",
       "neapolitan_periods": "Lifelong resident and premier leader of the Neapolitan Caravaggisti school",
-      "significance": "Caravaggio's foremost follower in Naples, combining Caravaggio's tenebrism with Tuscan academic drawing."
+      "significance": "Caravaggio's foremost follower in Naples, combining Caravaggio's tenebrism with Tuscan academic drawing.",
+      "dbpedia_birth_date": "1578-12-07",
+      "dbpedia_death_date": "1635-12-23",
+      "dbpedia_birth_name": "Giovanni Battista Caracciolo",
+      "dbpedia_training": "Francesco Imparato"
     }
   },
   "artworks": [
@@ -49,7 +57,9 @@
         "Seven Corporal Works of Mercy",
         "Christian charity",
         "Neapolitan street scene"
-      ]
+      ],
+      "dbpedia_image": "Caravaggio - Sette opere di Misericordia.jpg",
+      "dbpedia_dimensions": "390 cm x 260 cm"
     },
     {
       "uri": "https://dbpedia.org/resource/The_Flagellation_of_Christ_(Caravaggio)",
@@ -71,7 +81,9 @@
         "Passion of Christ",
         "Flagellation",
         "Chiaroscuro"
-      ]
+      ],
+      "dbpedia_image": "The_Flagellation_of_Christ-Caravaggio_.jpg",
+      "dbpedia_dimensions": "286 cm x 213 cm"
     },
     {
       "uri": "https://dbpedia.org/resource/The_Martyrdom_of_Saint_Ursula_(Caravaggio)",
@@ -93,7 +105,9 @@
         "Saint Ursula",
         "Martyrdom",
         "Self-portrait in background"
-      ]
+      ],
+      "dbpedia_image": "CaravaggioUrsula.jpg",
+      "dbpedia_dimensions": "140.5 cm x 170.5 cm"
     },
     {
       "uri": "https://dbpedia.org/resource/The_Liberation_of_Saint_Peter_(Battistello)",
@@ -219,7 +233,9 @@
       "coordinates": {
         "latitude": 40.8522,
         "longitude": 14.2619
-      }
+      },
+      "established": 1602,
+      "website": "https://www.piomontedellamisericordia.it"
     },
     {
       "name": "Museo Nazionale di Capodimonte",
@@ -232,7 +248,8 @@
       "coordinates": {
         "latitude": 40.8672,
         "longitude": 14.2503
-      }
+      },
+      "established": 1757
     },
     {
       "name": "Gallerie d'Italia (Palazzo Zevallos Stigliano)",

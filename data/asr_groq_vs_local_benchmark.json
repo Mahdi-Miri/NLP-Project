@@ -1,0 +1,170 @@
+{
+  "local_whisper_medium": {
+    "avg_wer_percent": 15.0,
+    "avg_seconds": 1.86,
+    "per_sentence": {
+      "s01": {
+        "wer": 0.0,
+        "seconds": 2.26,
+        "hyp": "Tell me about the Seven Works of Mercy by Caravaggio."
+      },
+      "s02": {
+        "wer": 10.0,
+        "seconds": 1.76,
+        "hyp": "Where can I see the legislation of Christ in Naples?"
+      },
+      "s03": {
+        "wer": 0.0,
+        "seconds": 1.78,
+        "hyp": "Is the liberation of Saint Peter located at Capodimonte?"
+      },
+      "s04": {
+        "wer": 0.0,
+        "seconds": 1.93,
+        "hyp": "What is the significance of Battistello Caracciolo's work in Naples?"
+      },
+      "s05": {
+        "wer": 10.0,
+        "seconds": 1.79,
+        "hyp": "Can you tell me the Martyrdom of Saint Ursula?"
+      },
+      "s06": {
+        "wer": 0.0,
+        "seconds": 1.86,
+        "hyp": "I want to visit Pio Monte della Misericordia today."
+      },
+      "s07": {
+        "wer": 37.5,
+        "seconds": 1.69,
+        "hyp": "Caravaggio painted the washing of the feet."
+      },
+      "s08": {
+        "wer": 0.0,
+        "seconds": 1.77,
+        "hyp": "Tell me about Christ at the Column and its history."
+      },
+      "s09": {
+        "wer": 62.5,
+        "seconds": 1.85,
+        "hyp": "Venuses in the Naples display Baroque, chiaroscuro paintings."
+      },
+      "s10": {
+        "wer": 30.0,
+        "seconds": 1.91,
+        "hyp": "Di Certosa di San Martino related to Battistello Caracciolo."
+      }
+    }
+  },
+  "groq_whisper-large-v3-turbo": {
+    "avg_wer_percent": 26.1,
+    "avg_seconds": 0.43,
+    "per_sentence": {
+      "s01": {
+        "wer": 0.0,
+        "seconds": 0.59,
+        "hyp": "Tell me about the seven works of Mercy by Caravaggio."
+      },
+      "s02": {
+        "wer": 20.0,
+        "seconds": 0.42,
+        "hyp": "Where can I see the regulation of Criist in Naples?"
+      },
+      "s03": {
+        "wer": 11.1,
+        "seconds": 0.52,
+        "hyp": "Is the liberation of Saint Peter located at Cappodimonte?"
+      },
+      "s04": {
+        "wer": 30.0,
+        "seconds": 0.39,
+        "hyp": "What is the significance of Batistello C\u00e1rc\u00edlio's work in the Naples?"
+      },
+      "s05": {
+        "wer": 20.0,
+        "seconds": 0.34,
+        "hyp": "Can you tell me the Martidor of Saint Ursula?"
+      },
+      "s06": {
+        "wer": 0.0,
+        "seconds": 0.5,
+        "hyp": "I want to visit Pio Monte della Misericordia today."
+      },
+      "s07": {
+        "wer": 37.5,
+        "seconds": 0.52,
+        "hyp": "Cacodio paint the washing of the feet."
+      },
+      "s08": {
+        "wer": 10.0,
+        "seconds": 0.4,
+        "hyp": "Tell me about Christ at the Cullum and its history."
+      },
+      "s09": {
+        "wer": 62.5,
+        "seconds": 0.28,
+        "hyp": "Vensos in the Naples display Barucho, chiaroscuro paintings."
+      },
+      "s10": {
+        "wer": 70.0,
+        "seconds": 0.38,
+        "hyp": "Venues, Certosa di S. Martino, Rilete tu Battistello Caraccicolo."
+      }
+    }
+  },
+  "groq_whisper-large-v3": {
+    "avg_wer_percent": 16.8,
+    "avg_seconds": 0.43,
+    "per_sentence": {
+      "s01": {
+        "wer": 0.0,
+        "seconds": 0.51,
+        "hyp": "Tell me about the seven works of mercy by Caravaggio."
+      },
+      "s02": {
+        "wer": 0.0,
+        "seconds": 0.34,
+        "hyp": "Where can I see the Flagellation of Christ in Naples?"
+      },
+      "s03": {
+        "wer": 0.0,
+        "seconds": 0.34,
+        "hyp": "Is the liberation of Saint Peter located at Capodimonte?"
+      },
+      "s04": {
+        "wer": 20.0,
+        "seconds": 0.33,
+        "hyp": "What is the significance of Battistello Caccaraccillo's work in the Naples?"
+      },
+      "s05": {
+        "wer": 10.0,
+        "seconds": 0.38,
+        "hyp": "Can you tell me the Martyrdom of Saint Ursula?"
+      },
+      "s06": {
+        "wer": 0.0,
+        "seconds": 0.62,
+        "hyp": "I want to visit Pio Monte della Misericordia today."
+      },
+      "s07": {
+        "wer": 25.0,
+        "seconds": 0.43,
+        "hyp": "C. Caravaggio paint the washing of the feet."
+      },
+      "s08": {
+        "wer": 0.0,
+        "seconds": 0.39,
+        "hyp": "Tell me about Christ at the Column and its history."
+      },
+      "s09": {
+        "wer": 62.5,
+        "seconds": 0.44,
+        "hyp": "Vensus in the Naples Dispare Baroque Chiaroscuro Paintings."
+      },
+      "s10": {
+        "wer": 50.0,
+        "seconds": 0.48,
+        "hyp": "Di Certosa di San Martino riletetu Bac... Battistello Cacaracicollo."
+      }
+    }
+  }
+}

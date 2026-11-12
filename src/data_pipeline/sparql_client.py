@@ -26,6 +26,13 @@ class DBpediaSPARQLClient:
         self.sparql.setTimeout(self.timeout)
         self.sparql.addCustomHttpHeader("User-Agent", config.sparql.user_agent)
 
+    @staticmethod
+    def _to_graph_uri(uri: str) -> str:
+        """DBpedia's RDF graph uses http:// resource IRIs; our stored URIs use
+        https:// (which only works as a browser-facing redirect, not inside SPARQL
+        triple patterns). Normalize before querying or every OPTIONAL silently matches zero rows."""
+        return uri.replace("https://dbpedia.org", "http://dbpedia.org", 1)
+
     def execute_query(self, query: str) -> List[Dict[str, Any]]:
         try:
             self.sparql.setQuery(query)
@@ -63,31 +70,35 @@ class DBpediaSPARQLClient:
         return extracted
 
     def fetch_artist_dbpedia_profile(self, artist_uri: str) -> Dict[str, Any]:
+        query_uri = self._to_graph_uri(artist_uri)
         query = f"""
         PREFIX dbo: <http://dbpedia.org/ontology/>
         PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
-        SELECT ?label ?abstract ?birthDate ?deathDate ?birthPlace ?deathPlace WHERE {{
-            <{artist_uri}> rdfs:label ?label .
-            OPTIONAL {{ <{artist_uri}> dbo:abstract ?abstract . FILTER(lang(?abstract) = 'en') }}
-            OPTIONAL {{ <{artist_uri}> dbo:birthDate ?birthDate }}
-            OPTIONAL {{ <{artist_uri}> dbo:deathDate ?deathDate }}
-            OPTIONAL {{ <{artist_uri}> dbo:birthPlace ?birthPlace }}
-            OPTIONAL {{ <{artist_uri}> dbo:deathPlace ?deathPlace }}
+        SELECT ?label ?abstract ?birthDate ?deathDate ?training WHERE {{
+            <{query_uri}> rdfs:label ?label .
+            OPTIONAL {{ <{query_uri}> dbo:abstract ?abstract . FILTER(lang(?abstract) = 'en') }}
+            OPTIONAL {{ <{query_uri}> dbo:birthDate ?birthDate }}
+            OPTIONAL {{ <{query_uri}> dbo:deathDate ?deathDate }}
+            OPTIONAL {{ <{query_uri}> dbo:training ?training }}
             FILTER (lang(?label) = 'en')
         }} LIMIT 1
         """
         bindings = self.execute_query(query)
         if bindings:
             row = bindings[0]
+
+            def place_name(key: str) -> str:
+                val = row.get(key, {}).get("value", "")
+                return val.rsplit("/", 1)[-1].replace("_", " ") if val else ""
+
             return {
                 "uri": artist_uri,
                 "name": row.get("label", {}).get("value", ""),
                 "abstract": row.get("abstract", {}).get("value", ""),
                 "birth_date": row.get("birthDate", {}).get("value", ""),
                 "death_date": row.get("deathDate", {}).get("value", ""),
-                "birth_place": row.get("birthPlace", {}).get("value", ""),
-                "death_place": row.get("deathPlace", {}).get("value", ""),
+                "training": place_name("training") if row.get("training", {}).get("type") == "uri" else row.get("training", {}).get("value", ""),
             }
         return {}
 
@@ -96,7 +107,7 @@ class DBpediaSPARQLClient:
             try:
                 with open(self.cache_file, "r", encoding="utf-8") as f:
                     cached_data = json.load(f)
-                    if "artworks" in cached_data and "artists" in cached_data:
+                    if cached_data.get("artworks") and cached_data.get("artists") and cached_data.get("venues"):
                         logger.info("Loaded Neapolitan corpus from cache: %s", self.cache_file)
                         return cached_data
             except Exception as exc:
@@ -142,23 +153,22 @@ class DBpediaSPARQLClient:
                     artist_data["dbpedia_birth_date"] = dbpedia_profile["birth_date"]
                 if dbpedia_profile.get("death_date"):
                     artist_data["dbpedia_death_date"] = dbpedia_profile["death_date"]
+                if dbpedia_profile.get("training"):
+                    artist_data["dbpedia_training"] = dbpedia_profile["training"]
 
         artworks = []
         for item in NEAPOLITAN_ARTWORKS:
             artwork_dict = dict(item)
-            artwork_uri = artwork_dict["uri"]
+            artwork_uri = self._to_graph_uri(artwork_dict["uri"])
             query = f"""
             PREFIX dbo: <http://dbpedia.org/ontology/>
             PREFIX dbp: <http://dbpedia.org/property/>
             PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
-            SELECT ?abstract ?comment ?image ?h ?w ?unit WHERE {{
+            SELECT ?abstract ?comment ?image WHERE {{
                 OPTIONAL {{ <{artwork_uri}> dbo:abstract ?abstract . FILTER (lang(?abstract) = 'en') }}
                 OPTIONAL {{ <{artwork_uri}> rdfs:comment ?comment . FILTER (lang(?comment) = 'en') }}
                 OPTIONAL {{ <{artwork_uri}> dbp:imageFile ?image }}
-                OPTIONAL {{ <{artwork_uri}> dbp:heightMetric ?h }}
-                OPTIONAL {{ <{artwork_uri}> dbp:widthMetric ?w }}
-                OPTIONAL {{ <{artwork_uri}> dbp:metricUnit ?unit }}
             }} LIMIT 1
             """
             prop_bindings = self.execute_query(query)
@@ -170,11 +180,6 @@ class DBpediaSPARQLClient:
                     artwork_dict["dbpedia_abstract"] = row["comment"].get("value", "")
                 if row.get("image"):
                     artwork_dict["dbpedia_image"] = row["image"].get("value", "")
-                if row.get("h") and row.get("w"):
-                    h_val = row["h"].get("value", "")
-                    w_val = row["w"].get("value", "")
-                    unit_val = row.get("unit", {}).get("value", "cm")
-                    artwork_dict["dbpedia_dimensions"] = f"{h_val} cm x {w_val} {unit_val}"
 
             artworks.append(artwork_dict)
 
@@ -188,6 +193,8 @@ class DBpediaSPARQLClient:
                 "address": "Via dei Tribunali 253, 80139 Napoli",
                 "description": "Historic charitable institution in the heart of Naples, holding Caravaggio's Seven Works of Mercy and Caracciolo's Liberation of Saint Peter in the high chapel.",
                 "coordinates": {"latitude": 40.8522, "longitude": 14.2619},
+                "established": 1602,
+                "website": "https://www.piomontedellamisericordia.it",
             },
             {
                 "name": "Museo Nazionale di Capodimonte",
@@ -198,6 +205,7 @@ class DBpediaSPARQLClient:
                 "address": "Via Miano 2, 80131 Napoli",
                 "description": "Grand Bourbon palace overlooking Naples, housing the Farnese Collection and Caravaggio's Flagellation along with Battistello's Christ at the Column.",
                 "coordinates": {"latitude": 40.8672, "longitude": 14.2503},
+                "established": 1757,
             },
             {
                 "name": "Gallerie d'Italia (Palazzo Zevallos Stigliano)",

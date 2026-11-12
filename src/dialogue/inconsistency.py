@@ -86,10 +86,12 @@ class InconsistencyDetector:
 
     def _check_out_of_scope_artist(self, query: str) -> Optional[InconsistencyReport]:
         for artist in self.DISALLOWED_FAMOUS_ARTISTS:
-            if artist == "michelangelo" and "merisi" in query:
-                continue
             pattern = r"\b" + re.escape(artist) + r"\b"
-            if re.search(pattern, query):
+            for match in re.finditer(pattern, query):
+                if artist == "michelangelo":
+                    window = self._word_window(query, match, before_n=2, after_n=4)
+                    if "merisi" in window or "caravaggio" in window:
+                        continue
                 return InconsistencyReport(
                     is_inconsistent=True,
                     inconsistency_type=InconsistencyType.OUT_OF_SCOPE_ARTIST,
@@ -99,6 +101,11 @@ class InconsistencyDetector:
                     ground_truth_entity="Caravaggio / Battistello Caracciolo",
                 )
         return None
+
+    def _word_window(self, query: str, match: re.Match, before_n: int, after_n: int) -> str:
+        before = query[: match.start()].split()[-before_n:]
+        after = query[match.end():].split()[:after_n]
+        return " ".join(before + after)
 
     def _check_non_neapolitan_artwork(self, query: str) -> Optional[InconsistencyReport]:
         for item in self.non_neapolitan_works:
@@ -177,9 +184,7 @@ class InconsistencyDetector:
         match = re.search(term_pattern, query)
         if not match:
             return False
-        before = query[: match.start()].split()[-5:]
-        after = query[match.end():].split()[:5]
-        window = " ".join(before + after)
+        window = self._word_window(query, match, before_n=5, after_n=5)
         return bool(re.search(r"\b(?:not|n't|never|isn't|wasn't|didn't|doesn't)\b", window))
 
     def _check_location_venue(

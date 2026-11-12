@@ -1,7 +1,5 @@
-import json
 import logging
-import sqlite3
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from config.settings import config
 
@@ -94,7 +92,8 @@ class Neo4jGraphStore:
                         p.death_place = $death_place,
                         p.neapolitan_periods = $neapolitan_periods,
                         p.significance = $significance,
-                        p.dbpedia_abstract = $abstract
+                        p.dbpedia_abstract = $abstract,
+                        p.dbpedia_training = $dbpedia_training
                     """,
                     name=artist_key,
                     uri=a_data.get("uri", ""),
@@ -106,6 +105,7 @@ class Neo4jGraphStore:
                     neapolitan_periods=a_data.get("neapolitan_periods", ""),
                     significance=a_data.get("significance", ""),
                     abstract=a_data.get("dbpedia_abstract", ""),
+                    dbpedia_training=a_data.get("dbpedia_training", ""),
                 )
 
             for venue in corpus.get("venues", []):
@@ -119,7 +119,9 @@ class Neo4jGraphStore:
                         l.address = $address,
                         l.description = $description,
                         l.latitude = $latitude,
-                        l.longitude = $longitude
+                        l.longitude = $longitude,
+                        l.established = $established,
+                        l.website = $website
                     WITH l
                     MATCH (c:City {name: 'Naples'})
                     MERGE (l)-[:IN_CITY]->(c)
@@ -132,6 +134,8 @@ class Neo4jGraphStore:
                     description=venue.get("description", ""),
                     latitude=coords.get("latitude", 0.0),
                     longitude=coords.get("longitude", 0.0),
+                    established=venue.get("established", 0),
+                    website=venue.get("website", ""),
                 )
 
             for art in corpus.get("artworks", []):
@@ -192,137 +196,37 @@ class Neo4jGraphStore:
             return [record.data() for record in result]
 
 
-class LocalGraphStore:
-    def __init__(self, db_path: Optional[str] = None):
-        self.db_path = str(db_path or config.paths.local_db_path)
-        self._init_db()
+class NeapolitanArtGraph:
+    def __init__(self):
+        self.neo4j_store = Neo4jGraphStore()
+        self.active_backend = "neo4j"
 
-    def _get_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
-
-    def _init_db(self):
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS nodes (
-                    id TEXT PRIMARY KEY,
-                    label TEXT NOT NULL,
-                    properties JSON NOT NULL
-                )
-                """
+        if not self.neo4j_store.connect():
+            raise ConnectionError(
+                f"Could not connect to Neo4j at {self.neo4j_store.uri}. "
+                "This project requires a running Neo4j instance (e.g. `docker start neo4j-nlp`); "
+                "there is no SQLite fallback."
             )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS edges (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    source_id TEXT NOT NULL,
-                    target_id TEXT NOT NULL,
-                    relation TEXT NOT NULL,
-                    properties JSON,
-                    FOREIGN KEY (source_id) REFERENCES nodes(id),
-                    FOREIGN KEY (target_id) REFERENCES nodes(id)
-                )
-                """
-            )
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_nodes_label ON nodes(label)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_edges_source ON edges(source_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_id)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_edges_rel ON edges(relation)")
-            conn.commit()
+        logger.info("Using Neo4j as active graph engine.")
+        self._artworks_cache: Optional[List[Dict[str, Any]]] = None
 
     def populate(self, corpus: Dict[str, Any]):
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM edges")
-            cursor.execute("DELETE FROM nodes")
-
-            cursor.execute(
-                "INSERT INTO nodes (id, label, properties) VALUES (?, ?, ?)",
-                ("city:Naples", "City", json.dumps({"name": "Naples", "country": "Italy"})),
-            )
-
-            for artist_name, a_data in corpus.get("artists", {}).items():
-                node_id = f"artist:{artist_name}"
-                props = dict(a_data)
-                props["name"] = artist_name
-                cursor.execute(
-                    "INSERT INTO nodes (id, label, properties) VALUES (?, ?, ?)",
-                    (node_id, "Artist", json.dumps(props)),
-                )
-
-            for venue in corpus.get("venues", []):
-                loc_id = f"location:{venue['name']}"
-                cursor.execute(
-                    "INSERT INTO nodes (id, label, properties) VALUES (?, ?, ?)",
-                    (loc_id, "Location", json.dumps(venue)),
-                )
-                cursor.execute(
-                    "INSERT INTO edges (source_id, target_id, relation, properties) VALUES (?, ?, ?, ?)",
-                    (loc_id, "city:Naples", "IN_CITY", json.dumps({})),
-                )
-
-            for art in corpus.get("artworks", []):
-                art_id = f"artwork:{art['title']}"
-                cursor.execute(
-                    "INSERT INTO nodes (id, label, properties) VALUES (?, ?, ?)",
-                    (art_id, "Artwork", json.dumps(art)),
-                )
-
-                artist_id = f"artist:{art['artist']}"
-                cursor.execute(
-                    "INSERT INTO edges (source_id, target_id, relation, properties) VALUES (?, ?, ?, ?)",
-                    (artist_id, art_id, "PAINTED", json.dumps({})),
-                )
-
-                loc_id = f"location:{art['location']}"
-                cursor.execute(
-                    "INSERT INTO edges (source_id, target_id, relation, properties) VALUES (?, ?, ?, ?)",
-                    (art_id, loc_id, "LOCATED_AT", json.dumps({})),
-                )
-
-                for sub in art.get("subjects", []):
-                    sub_id = f"subject:{sub}"
-                    cursor.execute(
-                        "INSERT OR IGNORE INTO nodes (id, label, properties) VALUES (?, ?, ?)",
-                        (sub_id, "Subject", json.dumps({"name": sub})),
-                    )
-                    cursor.execute(
-                        "INSERT INTO edges (source_id, target_id, relation, properties) VALUES (?, ?, ?, ?)",
-                        (art_id, sub_id, "DEPICTS", json.dumps({})),
-                    )
-
-            conn.commit()
-            logger.info("Local SQLite graph populated successfully.")
+        self.neo4j_store.populate(corpus)
+        self._artworks_cache = None
 
     def get_all_artworks(self) -> List[Dict[str, Any]]:
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT a.properties as art_prop,
-                       p.properties as artist_prop,
-                       l.properties as loc_prop
-                FROM nodes a
-                JOIN edges e1 ON e1.target_id = a.id AND e1.relation = 'PAINTED'
-                JOIN nodes p ON p.id = e1.source_id
-                JOIN edges e2 ON e2.source_id = a.id AND e2.relation = 'LOCATED_AT'
-                JOIN nodes l ON l.id = e2.target_id
-                WHERE a.label = 'Artwork'
-                """
-            )
-            rows = cursor.fetchall()
-            results = []
-            for row in rows:
-                art = json.loads(row["art_prop"])
-                artist = json.loads(row["artist_prop"])
-                loc = json.loads(row["loc_prop"])
-                art["artist_details"] = artist
-                art["location_details"] = loc
-                results.append(art)
-            return results
+        if self._artworks_cache is not None:
+            return self._artworks_cache
+        query = """
+        MATCH (p:Artist)-[:PAINTED]->(a:Artwork)-[:LOCATED_AT]->(l:Location)
+        RETURN a.title AS title, a.italian_title AS italian_title, a.year AS year,
+               a.medium AS medium, a.dimensions AS dimensions, a.description AS description,
+               a.uri AS uri, a.source_url AS source_url, a.dbpedia_page AS dbpedia_page,
+               a.dbpedia_abstract AS dbpedia_abstract,
+               p.name AS artist, l.name AS location, l.address AS address
+        """
+        self._artworks_cache = self.neo4j_store.run_cypher(query)
+        return self._artworks_cache
 
     def get_artworks_by_artist(self, artist_name: str) -> List[Dict[str, Any]]:
         all_arts = self.get_all_artworks()
@@ -345,81 +249,38 @@ class LocalGraphStore:
         return None
 
     def get_all_locations(self) -> List[Dict[str, Any]]:
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT properties FROM nodes WHERE label = 'Location'")
-            locs = [json.loads(r["properties"]) for r in cursor.fetchall()]
-
-            for loc in locs:
-                arts = self.get_artworks_by_location(loc["name"])
-                loc["artworks"] = [a["title"] for a in arts]
-                loc["artwork_count"] = len(arts)
-            return locs
-
-    def get_all_artists(self) -> List[Dict[str, Any]]:
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT properties FROM nodes WHERE label = 'Artist'")
-            artists = [json.loads(r["properties"]) for r in cursor.fetchall()]
-
-            for artist in artists:
-                arts = self.get_artworks_by_artist(artist["name"])
-                artist["artworks"] = [a["title"] for a in arts]
-                artist["artwork_count"] = len(arts)
-            return artists
-
-
-class NeapolitanArtGraph:
-    def __init__(self, prefer_neo4j: bool = True):
-        self.neo4j_store = Neo4jGraphStore()
-        self.local_store = LocalGraphStore()
-        self.active_backend = "sqlite"
-
-        if prefer_neo4j and self.neo4j_store.connect():
-            self.active_backend = "neo4j"
-            logger.info("Using Neo4j as active graph engine.")
-        else:
-            self.active_backend = "sqlite"
-            logger.info("Using embedded SQLite graph engine.")
-
-    def populate(self, corpus: Dict[str, Any]):
-        self.local_store.populate(corpus)
-        if self.active_backend == "neo4j" and self.neo4j_store._driver:
-            try:
-                self.neo4j_store.populate(corpus)
-            except Exception as exc:
-                logger.warning("Failed to populate Neo4j, fell back to local store: %s", exc)
-
-    def get_all_artworks(self) -> List[Dict[str, Any]]:
-        if self.active_backend == "neo4j" and self.neo4j_store._driver:
-            try:
-                query = """
-                MATCH (p:Artist)-[:PAINTED]->(a:Artwork)-[:LOCATED_AT]->(l:Location)
-                RETURN a.title AS title, a.italian_title AS italian_title, a.year AS year,
-                       a.medium AS medium, a.dimensions AS dimensions, a.description AS description,
-                       a.uri AS uri, a.source_url AS source_url, a.dbpedia_page AS dbpedia_page,
-                       p.name AS artist, l.name AS location, l.address AS address
-                """
-                records = self.neo4j_store.run_cypher(query)
-                if records:
-                    return records
-            except Exception as exc:
-                logger.warning("Neo4j query failed, delegating to local store: %s", exc)
-        return self.local_store.get_all_artworks()
-
-    def get_artworks_by_artist(self, artist_name: str) -> List[Dict[str, Any]]:
+        query = """
+        MATCH (l:Location)
+        RETURN l.name AS name, l.uri AS uri, l.source_url AS source_url,
+               l.dbpedia_page AS dbpedia_page, l.address AS address,
+               l.description AS description, l.latitude AS latitude,
+               l.longitude AS longitude, l.established AS established,
+               l.website AS website
+        """
+        records = self.neo4j_store.run_cypher(query)
         all_arts = self.get_all_artworks()
-        pattern = artist_name.lower()
-        return [a for a in all_arts if pattern in a.get("artist", "").lower()]
-
-    def get_artworks_by_location(self, location_name: str) -> List[Dict[str, Any]]:
-        return self.local_store.get_artworks_by_location(location_name)
-
-    def get_artwork_by_title(self, title: str) -> Optional[Dict[str, Any]]:
-        return self.local_store.get_artwork_by_title(title)
-
-    def get_all_locations(self) -> List[Dict[str, Any]]:
-        return self.local_store.get_all_locations()
+        for loc in records:
+            pattern = loc["name"].lower()
+            arts = [a for a in all_arts if pattern in a.get("location", "").lower()]
+            loc["artworks"] = [a["title"] for a in arts]
+            loc["artwork_count"] = len(arts)
+        return records
 
     def get_all_artists(self) -> List[Dict[str, Any]]:
-        return self.local_store.get_all_artists()
+        query = """
+        MATCH (p:Artist)
+        RETURN p.name AS name, p.uri AS uri, p.movement AS movement,
+               p.birth_year AS birth_year, p.death_year AS death_year,
+               p.birth_place AS birth_place, p.death_place AS death_place,
+               p.neapolitan_periods AS neapolitan_periods, p.significance AS significance,
+               p.dbpedia_abstract AS dbpedia_abstract,
+               p.dbpedia_training AS dbpedia_training
+        """
+        records = self.neo4j_store.run_cypher(query)
+        all_arts = self.get_all_artworks()
+        for artist in records:
+            pattern = artist["name"].lower()
+            arts = [a for a in all_arts if pattern in a.get("artist", "").lower()]
+            artist["artworks"] = [a["title"] for a in arts]
+            artist["artwork_count"] = len(arts)
+        return records
