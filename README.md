@@ -201,8 +201,6 @@ NLP-Project/
 ├── scripts/
 │   ├── build_graph.py             # Loads DBpedia data into Neo4j
 │   ├── interactive_cli.py         # Chat from the terminal
-│   ├── generate_pdf_report.py     # Builds TECHNICAL_REPORT.pdf
-│   ├── generate_pipeline_graphviz.py # Builds docs/pipeline_architecture.png
 │   ├── tune_asr_hyperparams.py    # Whisper hyperparameter sweep on real recordings
 │   ├── benchmark_asr_models.py    # Whisper model-size comparison
 │   ├── benchmark_groq_vs_local.py # Local Whisper vs. Groq's free cloud Whisper API
