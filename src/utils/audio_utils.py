@@ -1,6 +1,5 @@
 import io
 import logging
-import tempfile
 from pathlib import Path
 from typing import Any, Optional, Tuple
 import numpy as np
@@ -38,9 +37,3 @@ def load_and_normalize_audio(file_path_or_bytes: Any, target_sr: int = 16000) ->
     except Exception as exc:
         logger.error("Failed to load and normalize audio: %s", exc)
         return np.zeros(0, dtype=np.float32), target_sr
-
-
-def save_audio_to_temp_wav(audio_bytes: bytes) -> str:
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        tmp.write(audio_bytes)
-        return tmp.name

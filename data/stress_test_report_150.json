@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-12 15:08:17",
+  "timestamp": "2026-11-13 09:34:17",
   "total_tests": 150,
   "passed": 150,
   "failed": 0,
@@ -7,7 +7,7 @@
   "precision_pct": 100.0,
   "recall_pct": 100.0,
   "f1_score_pct": 100.0,
-  "avg_latency_ms": 0.5935494105021158,
+  "avg_latency_ms": 0.7473977406819662,
   "confusion_matrix": {
     "tp": 110,
     "tn": 40,

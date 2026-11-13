@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 class SpeechTurnResult(BaseModel):
     user_utterance: str
-    detected_language: str
     system_response: str
     response_audio_path: Optional[str] = None
     inconsistency_report: InconsistencyReport
@@ -37,13 +36,12 @@ class NeapolitanSpeechChatbot:
     def process_voice_turn(
         self, audio_source: Union[str, Path, bytes, np.ndarray], generate_speech: bool = True
     ) -> SpeechTurnResult:
-        transcript, language = self.asr.transcribe(audio_source)
+        transcript, _ = self.asr.transcribe(audio_source)
         if not transcript.strip():
             fallback_text = "I could not hear or transcribe any voice input. Please try speaking again."
             audio_path = self.tts.synthesize_to_file(fallback_text) if generate_speech else None
             return SpeechTurnResult(
                 user_utterance="",
-                detected_language=language,
                 system_response=fallback_text,
                 response_audio_path=audio_path,
                 inconsistency_report=InconsistencyReport(is_inconsistent=False),
@@ -57,7 +55,6 @@ class NeapolitanSpeechChatbot:
 
         return SpeechTurnResult(
             user_utterance=dialogue_result.user_utterance,
-            detected_language=language,
             system_response=dialogue_result.system_response,
             response_audio_path=audio_path,
             inconsistency_report=dialogue_result.inconsistency_report,
@@ -76,7 +73,6 @@ class NeapolitanSpeechChatbot:
 
         return SpeechTurnResult(
             user_utterance=dialogue_result.user_utterance,
-            detected_language="en",
             system_response=dialogue_result.system_response,
             response_audio_path=audio_path,
             inconsistency_report=dialogue_result.inconsistency_report,

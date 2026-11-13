@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from pydantic import BaseModel
 
 from src.data_pipeline.graph_db import NeapolitanArtGraph
@@ -17,7 +17,6 @@ class ChatbotTurnResult(BaseModel):
     active_artist: Optional[str] = None
     active_artwork: Optional[str] = None
     active_location: Optional[str] = None
-    graph_context: List[Dict[str, Any]] = []
 
 
 class NeapolitanArtChatbot:
@@ -59,7 +58,7 @@ class NeapolitanArtChatbot:
         identified_artist = self._extract_artist(clean_utterance) or anaphora.get("artist")
         identified_location = self._extract_location(clean_utterance) or anaphora.get("location")
 
-        response_text, context_items = self._generate_response(
+        response_text = self._generate_response(
             utterance=clean_utterance,
             artwork=identified_artwork,
             artist=identified_artist,
@@ -83,7 +82,6 @@ class NeapolitanArtChatbot:
             active_artist=curr_state.active_artist,
             active_artwork=curr_state.active_artwork.get("title") if curr_state.active_artwork else None,
             active_location=curr_state.active_location.get("name") if curr_state.active_location else None,
-            graph_context=context_items,
         )
 
     def _format_inconsistency_response(self, inc: InconsistencyReport) -> str:
@@ -179,12 +177,10 @@ class NeapolitanArtChatbot:
         artwork: Optional[Dict[str, Any]],
         artist: Optional[str],
         location: Optional[Dict[str, Any]],
-    ) -> (str, List[Dict[str, Any]]):
+    ) -> str:
         u_lower = utterance.lower()
-        context_items: List[Dict[str, Any]] = []
 
         if artwork:
-            context_items.append(artwork)
             addr = artwork.get("address") or artwork.get("location_details", {}).get("address", "Naples, Italy")
             yr = artwork.get("year", "the early 17th century")
             med = artwork.get("medium", "Oil on canvas")
@@ -198,35 +194,35 @@ class NeapolitanArtChatbot:
                     f"{loc}, located on {addr}. "
                     f"It was painted in {yr} and executed in {med.lower()}."
                 )
-                return resp, context_items
+                return resp
 
             if any(w in u_lower for w in ["who painted", "who is the artist", "author", "creator", "painter"]):
                 resp = (
                     f"'{artwork['title']}' was created by {artwork['artist']} in {yr}. "
                     f"You can view this masterwork in Naples at {loc}."
                 )
-                return resp, context_items
+                return resp
 
             if any(w in u_lower for w in ["dimension", "size", "measure", "height", "width", "medium", "canvas"]):
                 resp = (
                     f"'{artwork['title']}' is executed in {med} on a monumental scale measuring {dims}. "
                     f"It is on permanent display at {loc} in Naples."
                 )
-                return resp, context_items
+                return resp
 
             if any(w in u_lower for w in ["significance", "meaning", "importance", "history", "about this", "context"]):
                 resp = (
                     f"Regarding '{artwork['title']}', {desc} "
                     f"Painted in {yr} by {artwork.get('artist')}, it is preserved at {loc} in Naples."
                 )
-                return resp, context_items
+                return resp
 
             if any(w in u_lower for w in ["year", "when", "date", "period", "completed"]):
                 resp = (
                     f"'{artwork['title']}' was completed by {artwork.get('artist')} in {yr}. "
                     f"It can be viewed in Naples at {loc}."
                 )
-                return resp, context_items
+                return resp
 
             abstract_snippet = artwork.get("dbpedia_abstract")
             lead_in = (
@@ -239,10 +235,9 @@ class NeapolitanArtChatbot:
                 paragraphs.append(desc)
             if abstract_snippet:
                 paragraphs.append(f"Scholarly records note: {abstract_snippet[:220].rstrip()}...")
-            return "\n\n".join(paragraphs), context_items
+            return "\n\n".join(paragraphs)
 
         if location:
-            context_items.append(location)
             loc_name = location["name"]
             addr = location.get("address", "Naples, Italy")
             desc = location.get("description", "")
@@ -272,20 +267,16 @@ class NeapolitanArtChatbot:
             else:
                 paragraphs.append("No Caravaggio or Battistello Caracciolo works are currently cataloged at this location.")
 
-            return "\n\n".join(paragraphs), context_items
+            return "\n\n".join(paragraphs)
 
         if artist:
             artworks_by_artist = self.graph.get_artworks_by_artist(artist)
-            context_items.extend(artworks_by_artist)
 
             artist_nodes = self.graph.get_all_artists()
             artist_info = next(
                 (a for a in artist_nodes if a["name"].lower() in artist.lower() or artist.lower() in a["name"].lower()),
                 {},
             )
-            movement = artist_info.get("movement", "Baroque, Tenebrism, Chiaroscuro")
-            significance = artist_info.get("significance", "")
-            neapolitan_periods = artist_info.get("neapolitan_periods", "")
 
             is_bio_query = any(
                 w in u_lower
@@ -324,7 +315,7 @@ class NeapolitanArtChatbot:
             ]
             paragraphs.append("\n".join(art_lines))
             paragraphs.append("Feel free to ask about any of these paintings, their locations, dimensions, or iconography.")
-            return "\n\n".join(paragraphs), context_items
+            return "\n\n".join(paragraphs)
 
         if any(w in u_lower for w in ["hello", "hi", "help", "guide", "overview", "what can you do", "intro"]):
             all_arts = self.graph.get_all_artworks()
@@ -341,14 +332,14 @@ class NeapolitanArtChatbot:
                 f"- Battistello Caracciolo: {battistello_count} works (including 'The Liberation of Saint Peter' and 'The Washing of the Feet').\n"
                 f"- Historic Sites: {len(venues)} cultural museum venues and churches in Naples.\n\n"
                 f"You can ask about specific paintings, artist biographies, museum locations, or historical context."
-            ), []
+            )
 
         return (
             "I could not identify a specific artwork, artist, or venue from your question. "
             "You can ask about works by Caravaggio (such as 'The Seven Works of Mercy' or 'The Flagellation of Christ') "
             "or Battistello Caracciolo (such as 'The Liberation of Saint Peter' or 'The Washing of the Feet') "
             "visitable in Naples, or about venues like Pio Monte della Misericordia and Capodimonte."
-        ), []
+        )
 
     def reset_dialogue(self):
         self.tracker.reset()

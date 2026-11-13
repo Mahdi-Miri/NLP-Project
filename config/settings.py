@@ -3,7 +3,6 @@ from pydantic import BaseModel, Field
 
 
 class PathSettings(BaseModel):
-    project_root: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent)
     data_dir: Path = Field(default_factory=lambda: Path(__file__).resolve().parent.parent / "data")
 
 

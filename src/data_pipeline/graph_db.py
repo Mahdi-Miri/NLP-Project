@@ -238,16 +238,6 @@ class NeapolitanArtGraph:
         pattern = location_name.lower()
         return [a for a in all_arts if pattern in a.get("location", "").lower()]
 
-    def get_artwork_by_title(self, title: str) -> Optional[Dict[str, Any]]:
-        all_arts = self.get_all_artworks()
-        title_lower = title.strip().lower()
-        for a in all_arts:
-            if title_lower == a.get("title", "").lower() or title_lower in a.get("title", "").lower():
-                return a
-            if a.get("italian_title") and title_lower in a.get("italian_title", "").lower():
-                return a
-        return None
-
     def get_all_locations(self) -> List[Dict[str, Any]]:
         query = """
         MATCH (l:Location)

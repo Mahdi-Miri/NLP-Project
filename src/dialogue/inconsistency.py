@@ -21,15 +21,12 @@ class InconsistencyType(str, Enum):
 class InconsistencyReport(BaseModel):
     is_inconsistent: bool = False
     inconsistency_type: InconsistencyType = InconsistencyType.NO_INCONSISTENCY
-    confidence: float = 1.0
     explanation: str = ""
     suggested_correction: str = ""
     claimed_entity: Optional[str] = None
-    ground_truth_entity: Optional[str] = None
 
 
 class InconsistencyDetector:
-    KNOWN_ARTISTS = ["caravaggio", "battistello", "battistello caracciolo", "caracciolo"]
     DISALLOWED_FAMOUS_ARTISTS = [
         "leonardo", "leonardo da vinci", "michelangelo", "michelangelo buonarroti",
         "raphael", "raffaello", "bernini", "titian", "tiziano", "rembrandt",
@@ -98,7 +95,6 @@ class InconsistencyDetector:
                     explanation=f"The artist '{artist.title()}' is outside the scope of this Neapolitan exhibition.",
                     suggested_correction="This system focuses strictly on Caravaggio and Battistello Caracciolo works visitable in Naples.",
                     claimed_entity=artist.title(),
-                    ground_truth_entity="Caravaggio / Battistello Caracciolo",
                 )
         return None
 
@@ -118,7 +114,6 @@ class InconsistencyDetector:
                     explanation=f"'{item['title']}' is not in Naples. It is located in {item['city']} at {item['location']}.",
                     suggested_correction=f"If you are visiting Naples, you can see Caravaggio's works at Pio Monte della Misericordia, Capodimonte, or Gallerie d'Italia.",
                     claimed_entity=f"{item['title']} in Naples",
-                    ground_truth_entity=f"{item['title']} in {item['city']} ({item['location']})",
                 )
         return None
 
@@ -161,7 +156,6 @@ class InconsistencyDetector:
                             explanation=f"'{art['title']}' was created by {true_artist}, not {other_artist}.",
                             suggested_correction=f"{true_artist} painted '{art['title']}' around {art.get('year', 'the early 17th century')}.",
                             claimed_entity=f"Artist: {other_artist}",
-                            ground_truth_entity=f"Artist: {true_artist}",
                         )
 
                 for term in true_terms:
@@ -173,7 +167,6 @@ class InconsistencyDetector:
                             explanation=f"'{art['title']}' was in fact created by {true_artist}.",
                             suggested_correction=f"{true_artist} painted '{art['title']}' around {art.get('year', 'the early 17th century')}.",
                             claimed_entity=f"Artist: not {true_artist}",
-                            ground_truth_entity=f"Artist: {true_artist}",
                         )
         return None
 
@@ -216,7 +209,6 @@ class InconsistencyDetector:
                                     explanation=f"'{art['title']}' is not located at {venue_name}. It is permanently housed at {true_loc}.",
                                     suggested_correction=f"To view '{art['title']}', visit {true_loc} located at {art.get('location_details', {}).get('address', 'Naples')}.",
                                     claimed_entity=venue_name,
-                                    ground_truth_entity=true_loc,
                                 )
         return None
 
@@ -239,7 +231,6 @@ class InconsistencyDetector:
                         explanation=f"We were previously discussing '{active_artwork.get('title')}' by {true_artist}.",
                         suggested_correction=f"Battistello Caracciolo was a follower of Caravaggio, but painted his own works such as 'The Liberation of Saint Peter'.",
                         claimed_entity=f"Battistello for {active_artwork.get('title')}",
-                        ground_truth_entity=f"{true_artist} for {active_artwork.get('title')}",
                     )
         return None
 

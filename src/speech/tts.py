@@ -59,15 +59,6 @@ class TextToSpeechSynthesizer:
         logger.error("No TTS engine was able to synthesize audio.")
         return output_filepath
 
-    def synthesize_to_bytes(self, text: str) -> bytes:
-        filepath = self.synthesize_to_file(text)
-        try:
-            with open(filepath, "rb") as f:
-                return f.read()
-        except Exception as exc:
-            logger.error("Failed to read synthesized audio file: %s", exc)
-            return b""
-
     def _sanitize_text(self, text: str) -> str:
         cleaned = text.replace("*", "").replace("#", "").replace("`", "")
         cleaned = cleaned.replace("Notice:", "Notice.").replace("Clarification:", "Clarification.")

@@ -41,31 +41,6 @@ class DBpediaSPARQLClient:
             logger.warning("SPARQL query failed on DBpedia endpoint: %s", exc)
             return []
 
-    def fetch_caravaggio_works_from_dbpedia(self) -> List[Dict[str, str]]:
-        query = """
-        PREFIX dbo: <http://dbpedia.org/ontology/>
-        PREFIX dbr: <http://dbpedia.org/resource/>
-        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-
-        SELECT DISTINCT ?artwork ?title ?museum WHERE {
-            ?artwork dbo:author dbr:Caravaggio ;
-                     rdfs:label ?title .
-            OPTIONAL { ?artwork dbo:museum ?museum }
-            FILTER (lang(?title) = 'en')
-        } LIMIT 50
-        """
-        bindings = self.execute_query(query)
-        extracted: List[Dict[str, str]] = []
-        for row in bindings:
-            extracted.append(
-                {
-                    "artwork_uri": row.get("artwork", {}).get("value", ""),
-                    "title": row.get("title", {}).get("value", ""),
-                    "museum_uri": row.get("museum", {}).get("value", ""),
-                }
-            )
-        return extracted
-
     def fetch_artist_dbpedia_profile(self, artist_uri: str) -> Dict[str, Any]:
         query_uri = self._to_graph_uri(artist_uri)
         query = f"""

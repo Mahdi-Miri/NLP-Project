@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 class DialogueTurn(BaseModel):
-    turn_id: int
     user_utterance: str
     system_response: str
     active_artist: Optional[str] = None
@@ -22,7 +21,6 @@ class DialogueState(BaseModel):
     active_artist: Optional[str] = None
     active_artwork: Optional[Dict[str, Any]] = None
     active_location: Optional[Dict[str, Any]] = None
-    active_city: str = "Naples"
     turn_counter: int = 0
     history: List[DialogueTurn] = Field(default_factory=list)
     inconsistency_history: List[InconsistencyReport] = Field(default_factory=list)
@@ -63,7 +61,6 @@ class DialogueStateTracker:
             self.state.inconsistency_history.append(inconsistency)
 
         turn = DialogueTurn(
-            turn_id=self.state.turn_counter,
             user_utterance=user_utterance,
             system_response=system_response,
             active_artist=self.state.active_artist,
